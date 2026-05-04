@@ -1,24 +1,27 @@
-# SkoHit Music 🎵
+# SkoHit Music
 
 一个依赖于 Meting 的免费音乐项目。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## 项目原理
+
+SkoHit Music 是一个基于 Flask 的 Web 音乐应用，通过代理 Meting API 来获取音乐数据。项目采用 JSON 文件作为轻量级数据库，实现了用户系统和收藏功能。
+
+应用的工作流程如下：
+1. 用户通过 Web 界面登录系统，会话数据存储在服务端
+2. 前端通过 AJAX 请求调用后端 API 获取音乐数据
+3. 后端通过 Meting API 代理请求网易云音乐等平台的歌单、歌曲信息
+4. 用户收藏的歌曲 ID 会存储在本地 JSON 数据库中
+5. 播放时，前端通过 Meting API 获取真实的音乐播放地址
+
 ## 功能特性
 
-- 🔐 用户注册/登录系统
-- ❤️ 收藏喜爱的歌曲
-- 📊 实时在线用户统计
-- 🔍 歌单搜索与浏览
-- 📱 响应式 Web 界面
-- 🎧 基于 Meting API 的音乐播放
+用户注册与登录系统、收藏喜爱的歌曲、实时在线用户统计、歌单搜索与浏览、响应式 Web 界面、基于 Meting API 的音乐播放。
 
 ## 技术栈
 
-- **后端**: Flask (Python)
-- **数据库**: JSON 文件存储
-- **前端**: HTML5 + CSS3 + JavaScript
-- **音乐 API**: Meting API
+Flask (Python)、JSON 文件存储、HTML5 + CSS3 + JavaScript、Meting API
 
 ## 快速开始
 
@@ -114,4 +117,4 @@ Copyright (c) 2026 枝动力
 
 ## 致谢
 
-- [Meting](https://github.com/metowolf/Meting) - 强大的音乐 API 框架
+- [Meting](https://github.com/metowolf/Meting) - 免费的音乐 API 框架

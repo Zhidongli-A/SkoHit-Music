@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkoHit Music</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <nav>
+                <ul>
+                    <li class="active" onclick="navigate('toplist')">
+                        <i class="fas fa-fire"></i> <span>热歌排行</span>
+                    </li>
+                    <li onclick="navigate('playlists')">
+                        <i class="fas fa-list"></i> <span>歌单广场</span>
+                    </li>
+                    <li onclick="navigate('favorites')">
+                        <i class="fas fa-heart"></i> <span>我的收藏</span>
+                    </li>
+                </ul>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="username">{{ username }}</div>
+                <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content" id="main-view">
+            <!-- Top Bar with Search -->
+            <div class="top-bar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="搜索歌曲、歌手...">
+                </div>
+            </div>
+            
+            <!-- Dynamic Content -->
+            <div class="content-area" id="content-area">
+                <div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Player -->
+    <div class="player-bar">
+        <div class="song-info" onclick="openFullScreenPlayer()">
+            <img src="" alt="Album Art" id="mini-cover" style="display:none;">
+            <div class="details">
+                <div class="title" id="mini-title"></div>
+                <div class="artist" id="mini-artist"></div>
+            </div>
+        </div>
+        <div class="controls">
+            <div class="buttons">
+                <button onclick="playPrev()"><i class="fas fa-step-backward"></i></button>
+                <button onclick="togglePlay()" class="play-btn" id="mini-play-btn"><i class="fas fa-play"></i></button>
+                <button onclick="playNext()"><i class="fas fa-step-forward"></i></button>
+            </div>
+            <div class="progress-container">
+                <span id="mini-current-time">0:00</span>
+                <input type="range" min="0" max="100" value="0" id="mini-progress">
+                <span id="mini-duration">0:00</span>
+            </div>
+        </div>
+        <div class="extra-controls">
+            <button onclick="toggleFavorite()"><i class="far fa-heart" id="mini-heart"></i></button>
+        </div>
+    </div>
+
+    <!-- Full Screen Player Overlay -->
+        <div class="fullscreen-player" id="fs-player">
+            <div class="fs-header">
+                <button onclick="closeFullScreenPlayer()" class="back-btn"><i class="fas fa-chevron-down"></i></button>
+                <div></div>
+            </div>
+        
+        <div class="fs-content">
+            <!-- Left Side: Album Art & Controls -->
+            <div class="fs-left">
+                <div class="fs-album-art">
+                    <img src="https://via.placeholder.com/400" id="fs-cover">
+                </div>
+                <div class="fs-track-info">
+                    <div class="fs-name" id="fs-title">Title</div>
+                    <div class="fs-artist" id="fs-artist">Artist</div>
+                </div>
+                <div class="fs-progress">
+                    <input type="range" min="0" max="100" value="0" id="fs-progress-bar">
+                    <div class="time-labels">
+                        <span id="fs-current-time">0:00</span>
+                        <span id="fs-duration">0:00</span>
+                    </div>
+                </div>
+                <div class="fs-controls">
+                    <button onclick="playPrev()"><i class="fas fa-backward-step"></i></button>
+                    <button onclick="togglePlay()" class="fs-play-btn" id="fs-play-btn"><i class="fas fa-play"></i></button>
+                    <button onclick="playNext()"><i class="fas fa-forward-step"></i></button>
+                </div>
+            </div>
+
+            <!-- Right Side: Lyrics -->
+            <div class="fs-right">
+                <div class="lyrics-container" id="lyrics-container">
+                    <p class="lyric-line">暂无歌词</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Background Blur -->
+        <div class="fs-bg" id="fs-bg"></div>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    <script src="/static/js/app.js?v=9"></script>
+</body>
+</html>

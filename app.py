@@ -123,6 +123,30 @@ def pull_latest_code():
         print(f"[AutoUpdate] 拉取代码异常: {e}")
         return False
 
+def restart_service():
+    """重启服务 - 启动新进程并退出当前进程"""
+    print("[AutoUpdate] 正在重启服务...")
+    
+    # 获取当前运行的参数
+    import sys
+    args = sys.argv.copy()
+    
+    # 在新进程中启动
+    if sys.platform == 'win32':
+        # Windows
+        subprocess.Popen([sys.executable] + args, 
+                         creationflags=subprocess.CREATE_NEW_CONSOLE)
+    else:
+        # Linux/Mac
+        subprocess.Popen([sys.executable] + args,
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+    
+    print("[AutoUpdate] 新进程已启动，当前进程即将退出")
+    
+    # 退出当前进程
+    os._exit(0)
+
 def auto_update_worker():
     """自动更新工作线程"""
     global last_commit_hash
@@ -152,10 +176,13 @@ def auto_update_worker():
                     if pull_latest_code():
                         # 3. 更新本地版本记录
                         last_commit_hash = get_local_commit_hash()
-                        print("[AutoUpdate] 更新完成，服务将在下次重启后生效")
-                        print("[AutoUpdate] 提示: 如需立即生效，请手动重启服务")
+                        print("[AutoUpdate] 更新完成，即将自动重启服务...")
+                        
+                        # 4. 自动重启服务（延迟5秒让用户看到日志）
+                        time.sleep(5)
+                        restart_service()
                     else:
-                        print("[AutoUpdate] 拉取代码失败，请手动处理")
+                        print("[AutoUpdate] 拉取代码失败，取消重启")
                 else:
                     print("[AutoUpdate] 备份失败，取消更新")
         except Exception as e:

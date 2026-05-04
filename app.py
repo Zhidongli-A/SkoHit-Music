@@ -5,9 +5,10 @@ import requests
 import functools
 import time
 import subprocess
+import shutil
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response
-from threading import Lock
+from threading import Lock, Thread
 import json_db
 from dotenv import load_dotenv
 
@@ -43,6 +44,144 @@ def cleanup_inactive_users():
                           if current_time - data['last_activity'] > 1800]  # 30 minutes
         for user_id in inactive_users:
             del active_users[user_id]
+
+# --- Auto Update ---
+# 备份目录放在项目目录之外，避免被 Git 覆盖
+BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'skohit_backup')
+UPDATE_CHECK_INTERVAL = 60  # 每分钟检查一次
+last_commit_hash = None
+
+def ensure_backup_dir():
+    """确保备份目录存在（在项目目录之外）"""
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
+        print(f"[AutoUpdate] 创建备份目录: {BACKUP_DIR}")
+
+def backup_database():
+    """备份数据库到项目目录之外"""
+    ensure_backup_dir()
+    timestamp = time.strftime('%Y%m%d_%H%M%S')
+    
+    try:
+        if os.path.exists('data/users.json'):
+            backup_file = os.path.join(BACKUP_DIR, f'users.json.{timestamp}')
+            shutil.copy2('data/users.json', backup_file)
+            print(f"[AutoUpdate] 用户数据库已备份: {backup_file}")
+        
+        if os.path.exists('data/favorites.json'):
+            backup_file = os.path.join(BACKUP_DIR, f'favorites.json.{timestamp}')
+            shutil.copy2('data/favorites.json', backup_file)
+            print(f"[AutoUpdate] 收藏数据库已备份: {backup_file}")
+        
+        return True
+    except Exception as e:
+        print(f"[AutoUpdate] 备份失败: {e}")
+        return False
+
+def get_remote_commit_hash():
+    """获取远程仓库最新 commit hash"""
+    try:
+        # 获取远程分支最新 commit
+        result = subprocess.run(
+            ['git', 'ls-remote', 'origin', 'HEAD'],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.split()[0]
+    except Exception as e:
+        print(f"[AutoUpdate] 获取远程版本失败: {e}")
+    return None
+
+def get_local_commit_hash():
+    """获取本地当前 commit hash"""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception as e:
+        print(f"[AutoUpdate] 获取本地版本失败: {e}")
+    return None
+
+def pull_latest_code():
+    """拉取最新代码"""
+    try:
+        print("[AutoUpdate] 正在拉取最新代码...")
+        result = subprocess.run(
+            ['git', 'pull', 'origin', 'master'],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            print("[AutoUpdate] 代码更新成功")
+            return True
+        else:
+            print(f"[AutoUpdate] 代码更新失败: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"[AutoUpdate] 拉取代码异常: {e}")
+        return False
+
+def auto_update_worker():
+    """自动更新工作线程"""
+    global last_commit_hash
+    
+    # 初始获取本地版本
+    last_commit_hash = get_local_commit_hash()
+    print(f"[AutoUpdate] 当前版本: {last_commit_hash}")
+    print(f"[AutoUpdate] 更新检查间隔: {UPDATE_CHECK_INTERVAL}秒")
+    
+    while True:
+        time.sleep(UPDATE_CHECK_INTERVAL)
+        
+        try:
+            # 检查远程是否有更新
+            remote_hash = get_remote_commit_hash()
+            if not remote_hash:
+                continue
+            
+            if remote_hash != last_commit_hash:
+                print(f"[AutoUpdate] 检测到更新!")
+                print(f"[AutoUpdate] 本地: {last_commit_hash}")
+                print(f"[AutoUpdate] 远程: {remote_hash}")
+                
+                # 1. 备份数据库（到项目目录之外）
+                if backup_database():
+                    # 2. 拉取最新代码
+                    if pull_latest_code():
+                        # 3. 更新本地版本记录
+                        last_commit_hash = get_local_commit_hash()
+                        print("[AutoUpdate] 更新完成，服务将在下次重启后生效")
+                        print("[AutoUpdate] 提示: 如需立即生效，请手动重启服务")
+                    else:
+                        print("[AutoUpdate] 拉取代码失败，请手动处理")
+                else:
+                    print("[AutoUpdate] 备份失败，取消更新")
+        except Exception as e:
+            print(f"[AutoUpdate] 检查更新异常: {e}")
+
+def start_auto_update():
+    """启动自动更新线程"""
+    # 检查是否在 Git 仓库中
+    if not os.path.exists('.git'):
+        print("[AutoUpdate] 当前目录不是 Git 仓库，自动更新已禁用")
+        return
+    
+    # 检查是否有远程仓库配置
+    try:
+        result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
+        if 'origin' not in result.stdout:
+            print("[AutoUpdate] 未配置远程仓库，自动更新已禁用")
+            return
+    except Exception:
+        print("[AutoUpdate] Git 检查失败，自动更新已禁用")
+        return
+    
+    # 启动后台线程
+    update_thread = Thread(target=auto_update_worker, daemon=True)
+    update_thread.start()
+    print("[AutoUpdate] 自动更新监测已启动")
 
 # --- Helpers ---
 # (helper functions removed - now handled in json_db.py)
@@ -460,10 +599,15 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
     parser.add_argument('--no-api-service', action='store_true', help='Do not start API sub-service on port 8000')
     parser.add_argument('--is-subprocess', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--no-auto-update', action='store_true', help='Disable auto update check')
     args = parser.parse_args()
 
     main_port = args.port
     api_process = None
+
+    # 启动自动更新监测（如果不是子进程且未禁用）
+    if not args.is_subprocess and not args.no_auto_update:
+        start_auto_update()
 
     # Start API sub-service on port 8000 (unless disabled or this is already a subprocess)
     if not args.no_api_service and not args.is_subprocess and main_port != 8000:

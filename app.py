@@ -9,6 +9,10 @@ from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response
 from threading import Lock
 import json_db
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -151,7 +155,9 @@ def favorites():
             return jsonify({'success': False, 'message': 'Not found'}), 404
 
 # --- Routes: API Proxy ---
-METING_API_URL = "http://YOUR_METING_API_SERVER:3000/api"
+METING_API_URL = os.getenv('METING_API_URL', '')
+if not METING_API_URL:
+    raise ValueError("请设置 METING_API_URL 环境变量，或在 .env 文件中配置")
 
 @functools.lru_cache(maxsize=500)
 def cached_meting_request(server, type_arg, id_arg):

@@ -9,6 +9,7 @@
 SkoHit Music 是一个基于 Flask 的 Web 音乐应用，通过代理 Meting API 来获取音乐数据。项目采用 JSON 文件作为轻量级数据库，实现了用户系统和收藏功能。
 
 应用的工作流程如下：
+
 1. 用户通过 Web 界面登录系统，会话数据存储在服务端
 2. 前端通过 AJAX 请求调用后端 API 获取音乐数据
 3. 后端通过 Meting API 代理请求网易云音乐等平台的歌单、歌曲信息
@@ -44,7 +45,30 @@ cd SkoHit-Music
 pip install -r requirements.txt
 ```
 
-3. 运行应用
+3. 配置环境变量
+
+复制示例配置文件并修改：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件，设置你的 Meting API 地址：
+
+```
+METING_API_URL=http://your-meting-api-server:3000/api
+```
+
+4. 初始化数据库
+
+复制示例数据库文件：
+
+```bash
+cp data/users.example.json data/users.json
+cp data/favorites.example.json data/favorites.json
+```
+
+5. 运行应用
 
 ```bash
 python app.py
@@ -56,7 +80,7 @@ python app.py
 start.bat
 ```
 
-4. 打开浏览器访问 `http://localhost:7000`
+6. 打开浏览器访问 `http://localhost:7000`
 
 ## API 文档
 
@@ -94,17 +118,21 @@ start.bat
 
 ```
 SkoHit-Music/
-├── app.py              # 主应用入口
-├── json_db.py          # JSON 数据库操作
-├── requirements.txt    # Python 依赖
-├── start.bat          # Windows 启动脚本
-├── data/              # 数据存储目录
-│   ├── users.json     # 用户数据
-│   └── favorites.json # 收藏数据
-├── static/            # 静态资源
+├── app.py                    # 主应用入口
+├── json_db.py                # JSON 数据库操作
+├── requirements.txt          # Python 依赖
+├── .env.example              # 环境变量示例配置
+├── .gitignore               # Git 忽略文件
+├── start.bat                # Windows 启动脚本
+├── data/                    # 数据存储目录
+│   ├── users.example.json   # 用户表示例
+│   ├── favorites.example.json # 收藏表示例
+│   ├── users.json           # 用户数据（自动创建）
+│   └── favorites.json       # 收藏数据（自动创建）
+├── static/                  # 静态资源
 │   ├── css/
 │   └── js/
-└── templates/         # HTML 模板
+└── templates/               # HTML 模板
     ├── index.html
     └── login.html
 ```
@@ -113,8 +141,9 @@ SkoHit-Music/
 
 本项目采用 [MIT License](LICENSE) 开源许可证。
 
-Copyright (c) 2026 枝动力
+Copyright 2026 枝动力
 
 ## 致谢
 
 - [Meting](https://github.com/metowolf/Meting) - 免费的音乐 API 框架
+

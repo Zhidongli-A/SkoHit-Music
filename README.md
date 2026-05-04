@@ -59,16 +59,7 @@ cp .env.example .env
 METING_API_URL=http://your-meting-api-server:3000/api
 ```
 
-4. 初始化数据库
-
-复制示例数据库文件：
-
-```bash
-cp data/users.example.json data/users.json
-cp data/favorites.example.json data/favorites.json
-```
-
-5. 运行应用
+4. 运行应用
 
 ```bash
 python app.py
@@ -124,11 +115,9 @@ SkoHit-Music/
 ├── .env.example              # 环境变量示例配置
 ├── .gitignore               # Git 忽略文件
 ├── start.bat                # Windows 启动脚本
-├── data/                    # 数据存储目录
-│   ├── users.example.json   # 用户表示例
-│   ├── favorites.example.json # 收藏表示例
-│   ├── users.json           # 用户数据（自动创建）
-│   └── favorites.json       # 收藏数据（自动创建）
+├── data/                    # 数据存储目录（自动创建）
+│   ├── users.json           # 用户数据
+│   └── favorites.json       # 收藏数据
 ├── static/                  # 静态资源
 │   ├── css/
 │   └── js/

@@ -6,6 +6,8 @@ import functools
 import time
 import subprocess
 import shutil
+import tempfile
+import glob
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response
 from threading import Lock, Thread
@@ -46,16 +48,31 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-# 备份目录放在项目目录之外，避免被 Git 覆盖
-BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'skohit_backup')
+# 备份目录放在系统临时目录，绝对安全，不会被 Git 影响
+BACKUP_DIR = os.path.join(tempfile.gettempdir(), 'skohit_backup')
 UPDATE_CHECK_INTERVAL = 60  # 每分钟检查一次
+MAX_BACKUP_COUNT = 10  # 最多保留10个备份
 last_commit_hash = None
 
 def ensure_backup_dir():
-    """确保备份目录存在（在项目目录之外）"""
+    """确保备份目录存在（系统临时目录，不会被 Git 影响）"""
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
         print(f"[AutoUpdate] 创建备份目录: {BACKUP_DIR}")
+
+def cleanup_old_backups():
+    """清理旧备份文件，只保留最新的 MAX_BACKUP_COUNT 个"""
+    try:
+        for filename in ['users.json', 'favorites.json']:
+            pattern = os.path.join(BACKUP_DIR, f'{filename}.*')
+            files = sorted(glob.glob(pattern), key=os.path.getctime, reverse=True)
+            
+            # 删除旧备份
+            for old_file in files[MAX_BACKUP_COUNT:]:
+                os.remove(old_file)
+                print(f"[AutoUpdate] 清理旧备份: {os.path.basename(old_file)}")
+    except Exception as e:
+        print(f"[AutoUpdate] 清理备份失败: {e}")
 
 def backup_database():
     """备份数据库到项目目录之外"""

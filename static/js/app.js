@@ -141,7 +141,10 @@ async function loadToplist() {
         currentAbortController = ctrl;
         const res = await fetch('/api/163/toplist', { signal: ctrl.signal });
         const data = await res.json();
-        
+
+        // 检查是否还在当前视图，如果用户已切换则不渲染
+        if (currentView !== 'toplist') return;
+
         let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <h2 style="margin:0;">热歌排行</h2>
         </div><div class="list-container">`;
@@ -165,7 +168,7 @@ async function loadToplist() {
         currentPlaylist = data;
         isLoadingView = false;
         enrichToplistNoLimit(data, ctrl.signal);
-        
+
         // Update currentPlaylist with enriched data after enrichment is complete
         // Using a timeout to ensure enrichment has time to update the items
         setTimeout(() => {
@@ -234,7 +237,10 @@ async function loadPlaylists(cat) {
     try {
         const res = await fetch(`/api/163/playlists?cat=${cat}`);
         const data = await res.json();
-        
+
+        // 检查是否还在当前视图，如果用户已切换则不渲染
+        if (currentView !== 'playlists') return;
+
         let html = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <h2 style="margin:0;">${cat} 歌单</h2>
         </div><div class="grid-container">`;
@@ -279,11 +285,14 @@ async function loadPlaylistDetail(id) {
             <div class="list-container" id="pl-list"></div>
         `;
         document.getElementById('content-area').innerHTML = html;
-        
+
         const ctrl = new AbortController();
         currentAbortController = ctrl;
         const res = await fetch(`/api/meting?server=netease&type=playlist&id=${id}`, { signal: ctrl.signal });
         const data = await res.json();
+
+        // 检查是否还在当前视图，如果用户已切换则不渲染
+        if (currentView !== 'playlist_detail') return;
         
         currentPlaylist = data; // Store current playlist for next/prev
         
@@ -399,7 +408,10 @@ async function loadFavorites() {
     try {
         const res = await fetch('/api/favorites');
         const songIds = await res.json(); // 现在返回的是 song_id 列表
-        
+
+        // 检查是否还在当前视图，如果用户已切换则不渲染
+        if (currentView !== 'favorites') return;
+
         if (songIds.length === 0) {
             document.getElementById('content-area').innerHTML = '<h2>我的收藏</h2><p>暂无收藏歌曲</p>';
             currentPlaylist = [];
@@ -583,12 +595,15 @@ async function toggleFavoriteBySongId(songId) {
 
 async function loadSearchResults(query) {
     document.getElementById('content-area').innerHTML = `<h2>搜索结果: "${query}"</h2><div class="list-container" id="search-list"></div>`;
-    
+
     try {
         const ctrl = new AbortController();
         currentAbortController = ctrl;
         const res = await fetch(`/api/meting?server=netease&type=search&id=${encodeURIComponent(query)}`, { signal: ctrl.signal });
         const data = await res.json();
+
+        // 检查是否还在当前视图，如果用户已切换则不渲染
+        if (currentView !== 'search' || currentParam !== query) return;
         
         currentPlaylist = data;
         

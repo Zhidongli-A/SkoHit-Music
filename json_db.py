@@ -43,21 +43,13 @@ def init_db():
     if not os.path.exists(FAVORITES_FILE):
         _save_json(FAVORITES_FILE, [])
 
-def get_all_users() -> List[Dict]:
-    """获取所有用户"""
+def _get_all_users() -> List[Dict]:
+    """获取所有用户（内部使用）"""
     return _load_json(USERS_FILE)
-
-def get_user_by_id(user_id: int) -> Optional[Dict]:
-    """根据 ID 获取用户"""
-    users = get_all_users()
-    for user in users:
-        if user.get('id') == user_id:
-            return user
-    return None
 
 def get_user_by_username(username: str) -> Optional[Dict]:
     """根据用户名获取用户"""
-    users = get_all_users()
+    users = _get_all_users()
     for user in users:
         if user.get('username') == username:
             return user
@@ -65,7 +57,7 @@ def get_user_by_username(username: str) -> Optional[Dict]:
 
 def create_user(username: str, password: str) -> Dict:
     """创建新用户"""
-    users = get_all_users()
+    users = _get_all_users()
     
     # 生成新 ID
     new_id = 1
@@ -94,34 +86,9 @@ def verify_user(username: str, password: str) -> Optional[Dict]:
             return user
     return None
 
-def update_user(user_id: int, username: str = None, password: str = None) -> Optional[Dict]:
-    """更新用户信息"""
-    users = get_all_users()
-    for user in users:
-        if user.get('id') == user_id:
-            if username:
-                user['username'] = username
-            if password:
-                user['password'] = hashlib.md5(password.encode()).hexdigest()
-            _save_json(USERS_FILE, users)
-            return user
-    return None
-
-def delete_user(user_id: int) -> bool:
-    """删除用户"""
-    users = get_all_users()
-    original_len = len(users)
-    users = [u for u in users if u.get('id') != user_id]
-    if len(users) < original_len:
-        _save_json(USERS_FILE, users)
-        # 同时删除该用户的收藏
-        delete_user_favorites(user_id)
-        return True
-    return False
-
 def count_users() -> int:
     """获取用户总数"""
-    return len(get_all_users())
+    return len(_get_all_users())
 
 # --- Favorites (简化版，仅存储 song_id) ---
 
@@ -135,10 +102,6 @@ def get_user_favorites(user_id: int) -> List[str]:
             if song_id and song_id not in result:
                 result.append(song_id)
     return result
-
-def get_all_favorites() -> List[Dict]:
-    """获取所有收藏记录（管理员用）"""
-    return _load_json(FAVORITES_FILE)
 
 def add_favorite(user_id: int, song_id: str) -> bool:
     """添加收藏"""
@@ -176,21 +139,3 @@ def remove_favorite(user_id: int, song_id: str) -> bool:
         _save_json(FAVORITES_FILE, favorites)
         return True
     return False
-
-def delete_user_favorites(user_id: int):
-    """删除用户的所有收藏"""
-    favorites = _load_json(FAVORITES_FILE)
-    favorites = [f for f in favorites if f.get('user_id') != user_id]
-    _save_json(FAVORITES_FILE, favorites)
-
-def is_favorite(user_id: int, song_id: str) -> bool:
-    """检查歌曲是否已收藏"""
-    favorites = _load_json(FAVORITES_FILE)
-    for fav in favorites:
-        if fav.get('user_id') == user_id and fav.get('song_id') == song_id:
-            return True
-    return False
-
-def count_favorites() -> int:
-    """获取收藏总数"""
-    return len(_load_json(FAVORITES_FILE))

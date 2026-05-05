@@ -494,145 +494,6 @@ def get_stats():
     })
 
 # ============================================
-# API Extension Routes
-# These routes provide additional API endpoints for admin/extension use
-# ============================================
-
-@app.route('/api/users', methods=['GET'])
-def api_get_users():
-    """Get all users (for admin/extension use)"""
-    try:
-        users = json_db.get_all_users()
-        # 不返回密码字段
-        result = [{'id': u['id'], 'username': u['username']} for u in users]
-        return jsonify({'success': True, 'data': result})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/users/<int:user_id>', methods=['GET'])
-def api_get_user(user_id):
-    """Get user by ID"""
-    try:
-        user = json_db.get_user_by_id(user_id)
-        if user:
-            return jsonify({'success': True, 'data': {'id': user['id'], 'username': user['username']}})
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/users', methods=['POST'])
-def api_create_user():
-    """Create new user via API"""
-    try:
-        data = request.json
-        username = data.get('username')
-        password = data.get('password')
-
-        if not username or not password:
-            return jsonify({'success': False, 'error': 'Username and password are required'}), 400
-
-        # Check if user exists
-        existing = json_db.get_user_by_username(username)
-        if existing:
-            return jsonify({'success': False, 'error': 'Username already exists'}), 400
-
-        user = json_db.create_user(username, password)
-        return jsonify({'success': True, 'data': {'id': user['id'], 'username': user['username']}}), 201
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/users/<int:user_id>', methods=['PUT'])
-def api_update_user(user_id):
-    """Update user"""
-    try:
-        data = request.json
-        username = data.get('username')
-        password = data.get('password')
-
-        if not username and not password:
-            return jsonify({'success': False, 'error': 'No fields to update'}), 400
-
-        user = json_db.update_user(user_id, username, password)
-        if user:
-            return jsonify({'success': True, 'data': {'id': user['id'], 'username': user['username']}})
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
-def api_delete_user(user_id):
-    """Delete user"""
-    try:
-        success = json_db.delete_user(user_id)
-        if success:
-            return jsonify({'success': True, 'message': 'User deleted'})
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/all-favorites', methods=['GET'])
-def api_get_all_favorites():
-    """Get all favorites (for admin/extension use)"""
-    try:
-        favorites = json_db.get_all_favorites()
-        return jsonify({'success': True, 'data': favorites})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/user-favorites/<int:user_id>', methods=['GET'])
-def api_get_user_favorites(user_id):
-    """Get favorites by user ID - 返回 song_id 列表"""
-    try:
-        song_ids = json_db.get_user_favorites(user_id)
-        return jsonify({'success': True, 'data': song_ids})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/admin/favorites', methods=['POST'])
-def api_add_favorite_admin():
-    """Add favorite (admin/extension API with explicit user_id)"""
-    try:
-        data = request.json
-        user_id = data.get('user_id')
-        song_id = data.get('id') or data.get('song_id')
-
-        if not user_id or not song_id:
-            return jsonify({'success': False, 'error': 'user_id and song_id are required'}), 400
-
-        success = json_db.add_favorite(user_id, str(song_id))
-        if success:
-            return jsonify({'success': True, 'message': 'Favorite added'}), 201
-        return jsonify({'success': False, 'error': 'Already in favorites'}), 409
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/admin/favorites', methods=['DELETE'])
-def api_delete_favorite_admin():
-    """Delete favorite (admin/extension API with explicit user_id)"""
-    try:
-        user_id = request.args.get('user_id')
-        song_id = request.args.get('song_id') or request.args.get('id')
-
-        if not user_id or not song_id:
-            return jsonify({'success': False, 'error': 'user_id and song_id are required'}), 400
-
-        success = json_db.remove_favorite(int(user_id), song_id)
-        if success:
-            return jsonify({'success': True, 'message': 'Favorite deleted'})
-        return jsonify({'success': False, 'error': 'Favorite not found'}), 404
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ============================================
 # Main Entry Point
 # ============================================
 
@@ -642,40 +503,12 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='SkoHit Music Server')
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
-    parser.add_argument('--no-api-service', action='store_true', help='Do not start API sub-service on port 8000')
-    parser.add_argument('--is-subprocess', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--no-auto-update', action='store_true', help='Disable auto update check')
     args = parser.parse_args()
 
-    main_port = args.port
-    api_process = None
-
-    # 启动自动更新监测（如果不是子进程且未禁用）
-    if not args.is_subprocess and not args.no_auto_update:
+    # 启动自动更新监测
+    if not args.no_auto_update:
         start_auto_update()
 
-    # Start API sub-service on port 8000 (unless disabled or this is already a subprocess)
-    if not args.no_api_service and not args.is_subprocess and main_port != 8000:
-        # Prepare subprocess arguments (cross-platform)
-        popen_kwargs = {
-            'stdout': subprocess.DEVNULL,
-            'stderr': subprocess.DEVNULL
-        }
-
-        # Windows-specific: hide console window
-        if sys.platform == 'win32':
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0  # SW_HIDE
-            popen_kwargs['startupinfo'] = startupinfo
-
-        api_process = subprocess.Popen([sys.executable, __file__, '--port', '8000', '--is-subprocess'], **popen_kwargs)
-        print(f"API Service running on http://0.0.0.0:8000")
-
-    print(f"Main App running on http://0.0.0.0:{main_port}")
-
-    try:
-        app.run(host="0.0.0.0", debug=True, port=main_port, use_reloader=False)
-    finally:
-        if api_process:
-            api_process.terminate()
+    print(f"Server running on http://0.0.0.0:{args.port}")
+    app.run(host="0.0.0.0", debug=True, port=args.port, use_reloader=False)

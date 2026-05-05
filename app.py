@@ -167,14 +167,21 @@ def auto_update_worker():
     print(f"[AutoUpdate] 当前版本: {last_commit_hash}")
     print(f"[AutoUpdate] 更新检查间隔: {UPDATE_CHECK_INTERVAL}秒")
     
+    check_count = 0
     while True:
         time.sleep(UPDATE_CHECK_INTERVAL)
+        check_count += 1
         
         try:
+            print(f"[AutoUpdate] 第 {check_count} 次检查更新...")
+            
             # 检查远程是否有更新
             remote_hash = get_remote_commit_hash()
             if not remote_hash:
+                print(f"[AutoUpdate] 无法获取远程版本，跳过本次检查")
                 continue
+            
+            print(f"[AutoUpdate] 本地: {last_commit_hash[:8]}... 远程: {remote_hash[:8]}...")
             
             if remote_hash != last_commit_hash:
                 print(f"[AutoUpdate] 检测到更新!")

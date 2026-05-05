@@ -49,7 +49,7 @@ def cleanup_inactive_users():
 # --- Auto Update ---
 # 备份目录放在系统临时目录，绝对安全，不会被 Git 影响
 BACKUP_DIR = os.path.join(tempfile.gettempdir(), 'skohit_backup')
-UPDATE_CHECK_INTERVAL = 60  # 每分钟检查一次
+UPDATE_CHECK_INTERVAL = 30  # 每30秒检查一次（已验证功能正常）
 last_commit_hash = None
 
 def ensure_backup_dir():

@@ -3,34 +3,46 @@
 echo "[SkoHit Music] 正在检查环境..."
 
 # 检查 Git 是否安装
-if ! command -v git &> /dev/null; then
-    echo "[错误] 未检测到 Git，请先安装 Git"
-    echo ""
-    echo "安装方式："
-    
-    # 检测操作系统
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command -v apt &> /dev/null; then
-            echo "  sudo apt update && sudo apt install git"
-        elif command -v yum &> /dev/null; then
-            echo "  sudo yum install git"
-        elif command -v pacman &> /dev/null; then
-            echo "  sudo pacman -S git"
-        else
-            echo "  请使用系统的包管理器安装 git"
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "  brew install git"
-        echo "或"
-        echo "  访问 https://git-scm.com/download/mac 下载安装包"
-    else
-        echo "  请访问 https://git-scm.com/downloads 下载安装包"
-    fi
-    
-    echo ""
-    echo "安装完成后重新运行此脚本"
+if command -v git &> /dev/null; then
+    echo "[SkoHit Music] Git 已安装，启动服务..."
+    python3 app.py "$@"
+    exit 0
+fi
+
+echo "[SkoHit Music] 未检测到 Git，正在自动安装..."
+
+# 检测包管理器并安装 Git
+if command -v apt &> /dev/null; then
+    echo "[SkoHit Music] 使用 apt 安装 Git..."
+    apt update && apt install -y git
+elif command -v yum &> /dev/null; then
+    echo "[SkoHit Music] 使用 yum 安装 Git..."
+    yum install -y git
+elif command -v dnf &> /dev/null; then
+    echo "[SkoHit Music] 使用 dnf 安装 Git..."
+    dnf install -y git
+elif command -v pacman &> /dev/null; then
+    echo "[SkoHit Music] 使用 pacman 安装 Git..."
+    pacman -S --noconfirm git
+elif command -v zypper &> /dev/null; then
+    echo "[SkoHit Music] 使用 zypper 安装 Git..."
+    zypper install -y git
+elif command -v apk &> /dev/null; then
+    echo "[SkoHit Music] 使用 apk 安装 Git..."
+    apk add git
+elif command -v brew &> /dev/null; then
+    echo "[SkoHit Music] 使用 brew 安装 Git..."
+    brew install git
+else
+    echo "[错误] 无法找到可用的包管理器，请手动安装 Git"
     exit 1
 fi
 
-echo "[SkoHit Music] Git 已安装，启动服务..."
-python3 app.py "$@"
+# 再次检查 Git 是否安装成功
+if command -v git &> /dev/null; then
+    echo "[SkoHit Music] Git 安装成功，启动服务..."
+    python3 app.py "$@"
+else
+    echo "[错误] Git 安装失败，请手动安装"
+    exit 1
+fi

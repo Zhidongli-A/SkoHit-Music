@@ -56,7 +56,7 @@ def ensure_backup_dir():
     """确保备份目录存在（系统临时目录，不会被 Git 影响）"""
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
-        print(f"[AutoUpdate] 创建备份目录: {BACKUP_DIR}")
+        print(f"[SkoHit][AutoUpdate] Created backup dir: {BACKUP_DIR}")
 
 def cleanup_old_backups():
     """清理所有旧备份文件"""
@@ -64,9 +64,9 @@ def cleanup_old_backups():
         if os.path.exists(BACKUP_DIR):
             # 删除整个备份目录及其内容
             shutil.rmtree(BACKUP_DIR)
-            print(f"[AutoUpdate] 已清理所有旧备份")
+            print(f"[SkoHit][AutoUpdate] Cleaned old backups")
     except Exception as e:
-        print(f"[AutoUpdate] 清理备份失败: {e}")
+        print(f"[SkoHit][AutoUpdate] Failed to clean backups: {e}")
 
 def backup_database():
     """备份数据库到项目目录之外"""
@@ -77,16 +77,16 @@ def backup_database():
         if os.path.exists('data/users.json'):
             backup_file = os.path.join(BACKUP_DIR, f'users.json.{timestamp}')
             shutil.copy2('data/users.json', backup_file)
-            print(f"[AutoUpdate] 用户数据库已备份: {backup_file}")
+            print(f"[SkoHit][AutoUpdate] Users DB backed up: {backup_file}")
         
         if os.path.exists('data/favorites.json'):
             backup_file = os.path.join(BACKUP_DIR, f'favorites.json.{timestamp}')
             shutil.copy2('data/favorites.json', backup_file)
-            print(f"[AutoUpdate] 收藏数据库已备份: {backup_file}")
+            print(f"[SkoHit][AutoUpdate] Favorites DB backed up: {backup_file}")
         
         return True
     except Exception as e:
-        print(f"[AutoUpdate] 备份失败: {e}")
+        print(f"[SkoHit][AutoUpdate] Backup failed: {e}")
         return False
 
 def get_remote_commit_hash():
@@ -100,7 +100,7 @@ def get_remote_commit_hash():
         if result.returncode == 0:
             return result.stdout.split()[0]
     except Exception as e:
-        print(f"[AutoUpdate] 获取远程版本失败: {e}")
+        print(f"[SkoHit][AutoUpdate] Failed to get remote version: {e}")
     return None
 
 def get_local_commit_hash():
@@ -113,30 +113,30 @@ def get_local_commit_hash():
         if result.returncode == 0:
             return result.stdout.strip()
     except Exception as e:
-        print(f"[AutoUpdate] 获取本地版本失败: {e}")
+        print(f"[SkoHit][AutoUpdate] Failed to get local version: {e}")
     return None
 
 def pull_latest_code():
     """拉取最新代码"""
     try:
-        print("[AutoUpdate] 正在拉取最新代码...")
+        print("[SkoHit][AutoUpdate] Pulling latest code...")
         result = subprocess.run(
             ['git', 'pull', 'origin', 'master'],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            print("[AutoUpdate] 代码更新成功")
+            print("[SkoHit][AutoUpdate] Code updated successfully")
             return True
         else:
-            print(f"[AutoUpdate] 代码更新失败: {result.stderr}")
+            print(f"[SkoHit][AutoUpdate] Code update failed: {result.stderr}")
             return False
     except Exception as e:
-        print(f"[AutoUpdate] 拉取代码异常: {e}")
+        print(f"[SkoHit][AutoUpdate] Pull error: {e}")
         return False
 
 def restart_service():
     """重启服务 - 启动新进程并退出当前进程"""
-    print("[AutoUpdate] 正在重启服务...")
+    print("[SkoHit][AutoUpdate] Restarting service...")
     
     # 获取当前运行的参数
     import sys
@@ -153,7 +153,7 @@ def restart_service():
                          stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
     
-    print("[AutoUpdate] 新进程已启动，当前进程即将退出")
+    print("[SkoHit][AutoUpdate] New process started, exiting current process")
     
     # 退出当前进程
     os._exit(0)
@@ -164,8 +164,8 @@ def auto_update_worker():
     
     # 初始获取本地版本
     last_commit_hash = get_local_commit_hash()
-    print(f"[AutoUpdate] 当前版本: {last_commit_hash}")
-    print(f"[AutoUpdate] 更新检查间隔: {UPDATE_CHECK_INTERVAL}秒")
+    print(f"[SkoHit][AutoUpdate] Current version: {last_commit_hash}")
+    print(f"[SkoHit][AutoUpdate] Check interval: {UPDATE_CHECK_INTERVAL}s")
     
     check_count = 0
     while True:
@@ -173,60 +173,63 @@ def auto_update_worker():
         check_count += 1
         
         try:
-            print(f"[AutoUpdate] 第 {check_count} 次检查更新...")
+            print(f"[SkoHit][AutoUpdate] Check #{check_count}...")
             
             # 检查远程是否有更新
             remote_hash = get_remote_commit_hash()
             if not remote_hash:
-                print(f"[AutoUpdate] 无法获取远程版本，跳过本次检查")
+                print(f"[SkoHit][AutoUpdate] Failed to get remote version, skip")
                 continue
             
-            print(f"[AutoUpdate] 本地: {last_commit_hash[:8]}... 远程: {remote_hash[:8]}...")
+            print(f"[SkoHit][AutoUpdate] Local: {last_commit_hash[:8]}... Remote: {remote_hash[:8]}...")
             
             if remote_hash != last_commit_hash:
-                print(f"[AutoUpdate] 检测到更新!")
-                print(f"[AutoUpdate] 本地: {last_commit_hash}")
-                print(f"[AutoUpdate] 远程: {remote_hash}")
+                print(f"[SkoHit][AutoUpdate] Update detected!")
+                print(f"[SkoHit][AutoUpdate] Local: {last_commit_hash}")
+                print(f"[SkoHit][AutoUpdate] Remote: {remote_hash}")
                 
-                # 1. 备份数据库（到项目目录之外）
+                # 1. Clean old backups first
+                cleanup_old_backups()
+
+                # 2. Backup database
                 if backup_database():
-                    # 2. 拉取最新代码
+                    # 3. Pull latest code
                     if pull_latest_code():
-                        # 3. 更新本地版本记录
+                        # 4. Update local version record
                         last_commit_hash = get_local_commit_hash()
-                        print("[AutoUpdate] 更新完成，即将自动重启服务...")
+                        print("[SkoHit][AutoUpdate] Update complete, restarting...")
                         
-                        # 4. 自动重启服务（延迟5秒让用户看到日志）
+                        # 5. Restart service (delay 5s for log visibility)
                         time.sleep(5)
                         restart_service()
                     else:
-                        print("[AutoUpdate] 拉取代码失败，取消重启")
+                        print("[SkoHit][AutoUpdate] Pull failed, cancel restart")
                 else:
-                    print("[AutoUpdate] 备份失败，取消更新")
+                    print("[SkoHit][AutoUpdate] Backup failed, cancel update")
         except Exception as e:
-            print(f"[AutoUpdate] 检查更新异常: {e}")
+            print(f"[SkoHit][AutoUpdate] Error: {e}")
 
 def start_auto_update():
     """启动自动更新线程"""
     # 检查是否在 Git 仓库中
     if not os.path.exists('.git'):
-        print("[AutoUpdate] 当前目录不是 Git 仓库，自动更新已禁用")
+        print("[SkoHit][AutoUpdate] Not a Git repo, auto-update disabled")
         return
     
     # 检查是否有远程仓库配置
     try:
         result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
         if 'origin' not in result.stdout:
-            print("[AutoUpdate] 未配置远程仓库，自动更新已禁用")
+            print("[SkoHit][AutoUpdate] No remote configured, auto-update disabled")
             return
     except Exception:
-        print("[AutoUpdate] Git 检查失败，自动更新已禁用")
+        print("[SkoHit][AutoUpdate] Git check failed, auto-update disabled")
         return
     
     # 启动后台线程
     update_thread = Thread(target=auto_update_worker, daemon=True)
     update_thread.start()
-    print("[AutoUpdate] 自动更新监测已启动")
+    print("[SkoHit][AutoUpdate] Auto-update monitoring started")
 
 # --- Helpers ---
 # (helper functions removed - now handled in json_db.py)

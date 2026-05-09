@@ -1,54 +1,54 @@
 #!/bin/bash
 
-echo "[SkoHit Music] 正在检查环境..."
+echo "[StartSh] Checking environment..."
 
-# 检查 Git 是否安装
+# Check if Git is installed
 if command -v git &> /dev/null; then
-    echo "[SkoHit Music] Git 已安装，启动服务..."
+    echo "[StartSh] Git is installed, starting server..."
     python3 app.py "$@"
     exit 0
 fi
 
-echo "[SkoHit Music] 未检测到 Git，正在自动安装..."
+echo "[StartSh] Git not found, installing automatically..."
 
-# 检查是否有 sudo 权限
+# Check if sudo is available
 SUDO=""
 if command -v sudo &> /dev/null; then
     SUDO="sudo"
 fi
 
-# 检测包管理器并安装 Git
+# Detect package manager and install Git
 if command -v apt &> /dev/null; then
-    echo "[SkoHit Music] 使用 apt 安装 Git..."
+    echo "[StartSh] Installing Git via apt..."
     $SUDO apt update && $SUDO apt install -y git
 elif command -v yum &> /dev/null; then
-    echo "[SkoHit Music] 使用 yum 安装 Git..."
+    echo "[StartSh] Installing Git via yum..."
     $SUDO yum install -y git
 elif command -v dnf &> /dev/null; then
-    echo "[SkoHit Music] 使用 dnf 安装 Git..."
+    echo "[StartSh] Installing Git via dnf..."
     $SUDO dnf install -y git
 elif command -v pacman &> /dev/null; then
-    echo "[SkoHit Music] 使用 pacman 安装 Git..."
+    echo "[StartSh] Installing Git via pacman..."
     $SUDO pacman -S --noconfirm git
 elif command -v zypper &> /dev/null; then
-    echo "[SkoHit Music] 使用 zypper 安装 Git..."
+    echo "[StartSh] Installing Git via zypper..."
     $SUDO zypper install -y git
 elif command -v apk &> /dev/null; then
-    echo "[SkoHit Music] 使用 apk 安装 Git..."
+    echo "[StartSh] Installing Git via apk..."
     $SUDO apk add git
 elif command -v brew &> /dev/null; then
-    echo "[SkoHit Music] 使用 brew 安装 Git..."
+    echo "[StartSh] Installing Git via brew..."
     brew install git
 else
-    echo "[错误] 无法找到可用的包管理器，请手动安装 Git"
+    echo "[StartSh] [ERROR] No package manager found, please install Git manually"
     exit 1
 fi
 
-# 再次检查 Git 是否安装成功
+# Verify Git installation
 if command -v git &> /dev/null; then
-    echo "[SkoHit Music] Git 安装成功，启动服务..."
+    echo "[StartSh] Git installed successfully, starting server..."
     python3 app.py "$@"
 else
-    echo "[错误] Git 安装失败，请手动安装"
+    echo "[StartSh] [ERROR] Failed to install Git"
     exit 1
 fi

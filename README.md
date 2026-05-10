@@ -26,11 +26,68 @@ Flask (Python)、JSON 文件存储、HTML5 + CSS3 + JavaScript、Meting API
 
 ## 快速开始
 
-### 环境要求
+### 方式一：Docker 部署（推荐）
+
+#### 环境要求
+
+- Docker
+- Docker Compose
+
+#### 部署步骤
+
+1. 克隆仓库
+
+```bash
+git clone https://github.com/Zhidongli-A/SkoHit-Music.git
+cd SkoHit-Music
+```
+
+2. 配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件，设置你的 Meting API 地址：
+
+```
+METING_API_URL=http://your-meting-api-server:3000/api
+```
+
+3. 启动容器
+
+```bash
+docker-compose up -d
+```
+
+4. 打开浏览器访问 `http://localhost:7000`
+
+#### Docker 常用命令
+
+```bash
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+
+# 更新到最新版本
+docker-compose pull && docker-compose up -d
+```
+
+---
+
+### 方式二：本地部署
+
+#### 环境要求
 
 - Python 3.8+
+- Git
 
-### 安装步骤
+#### 安装步骤
 
 1. 克隆仓库
 
@@ -47,17 +104,11 @@ pip install -r requirements.txt
 
 3. 配置环境变量
 
-复制示例配置文件并修改：
-
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，设置你的 Meting API 地址：
-
-```
-METING_API_URL=http://your-meting-api-server:3000/api
-```
+编辑 `.env` 文件，设置你的 Meting API 地址。
 
 4. 运行应用
 
@@ -68,10 +119,14 @@ python app.py
 或使用启动脚本：
 
 ```bash
+# Windows
 start.bat
+
+# Linux/Mac
+./start.sh
 ```
 
-6. 打开浏览器访问 `http://localhost:7000`
+5. 打开浏览器访问 `http://localhost:7000`
 
 ## API 文档
 
@@ -113,8 +168,13 @@ SkoHit-Music/
 ├── json_db.py                # JSON 数据库操作
 ├── requirements.txt          # Python 依赖
 ├── .env.example              # 环境变量示例配置
+├── .env                      # 环境变量（本地配置，不提交到 Git）
 ├── .gitignore               # Git 忽略文件
+├── Dockerfile               # Docker 镜像构建文件
+├── docker-compose.yml       # Docker Compose 配置
+├── .dockerignore            # Docker 构建忽略文件
 ├── start.bat                # Windows 启动脚本
+├── start.sh                 # Linux/Mac 启动脚本
 ├── data/                    # 数据存储目录（自动创建）
 │   ├── users.json           # 用户数据
 │   └── favorites.json       # 收藏数据

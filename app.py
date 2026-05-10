@@ -5,8 +5,6 @@ import requests
 import functools
 import time
 import subprocess
-import shutil
-import tempfile
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response
 from threading import Lock, Thread
@@ -47,47 +45,8 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-# 备份目录放在系统临时目录，绝对安全，不会被 Git 影响
-BACKUP_DIR = os.path.join(tempfile.gettempdir(), 'skohit_backup')
 UPDATE_CHECK_INTERVAL = 30  # 每30秒检查一次（已验证功能正常）
 last_commit_hash = None
-
-def ensure_backup_dir():
-    """确保备份目录存在（系统临时目录，不会被 Git 影响）"""
-    if not os.path.exists(BACKUP_DIR):
-        os.makedirs(BACKUP_DIR)
-        print(f"[SkoHit][AutoUpdate] Created backup dir: {BACKUP_DIR}")
-
-def cleanup_old_backups():
-    """清理所有旧备份文件"""
-    try:
-        if os.path.exists(BACKUP_DIR):
-            # 删除整个备份目录及其内容
-            shutil.rmtree(BACKUP_DIR)
-            print(f"[SkoHit][AutoUpdate] Cleaned old backups")
-    except Exception as e:
-        print(f"[SkoHit][AutoUpdate] Failed to clean backups: {e}")
-
-def backup_database():
-    """备份数据库到项目目录之外"""
-    ensure_backup_dir()
-    timestamp = time.strftime('%Y%m%d_%H%M%S')
-    
-    try:
-        if os.path.exists('data/users.json'):
-            backup_file = os.path.join(BACKUP_DIR, f'users.json.{timestamp}')
-            shutil.copy2('data/users.json', backup_file)
-            print(f"[SkoHit][AutoUpdate] Users DB backed up: {backup_file}")
-        
-        if os.path.exists('data/favorites.json'):
-            backup_file = os.path.join(BACKUP_DIR, f'favorites.json.{timestamp}')
-            shutil.copy2('data/favorites.json', backup_file)
-            print(f"[SkoHit][AutoUpdate] Favorites DB backed up: {backup_file}")
-        
-        return True
-    except Exception as e:
-        print(f"[SkoHit][AutoUpdate] Backup failed: {e}")
-        return False
 
 def get_remote_commit_hash():
     """获取远程仓库最新 commit hash"""
@@ -188,44 +147,48 @@ def auto_update_worker():
                 print(f"[SkoHit][AutoUpdate] Local: {last_commit_hash}")
                 print(f"[SkoHit][AutoUpdate] Remote: {remote_hash}")
                 
-                # 1. Clean old backups first
-                cleanup_old_backups()
-
-                # 2. Backup database
-                if backup_database():
-                    # 3. Pull latest code
-                    if pull_latest_code():
-                        # 4. Update local version record
-                        last_commit_hash = get_local_commit_hash()
-                        print("[SkoHit][AutoUpdate] Update complete, restarting...")
-                        
-                        # 5. Restart service (delay 5s for log visibility)
-                        time.sleep(5)
-                        restart_service()
-                    else:
-                        print("[SkoHit][AutoUpdate] Pull failed, cancel restart")
+                # Pull latest code and restart
+                if pull_latest_code():
+                    last_commit_hash = get_local_commit_hash()
+                    print("[SkoHit][AutoUpdate] Update complete, restarting...")
+                    time.sleep(5)
+                    restart_service()
                 else:
-                    print("[SkoHit][AutoUpdate] Backup failed, cancel update")
+                    print("[SkoHit][AutoUpdate] Pull failed, cancel restart")
         except Exception as e:
             print(f"[SkoHit][AutoUpdate] Error: {e}")
 
-def start_auto_update():
-    """启动自动更新线程"""
+def check_git_requirements():
+    """检查 Git 环境要求，不满足则退出程序"""
+    # 检查 Git 命令是否可用
+    try:
+        result = subprocess.run(['git', '--version'], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
+            sys.exit(1)
+    except Exception:
+        print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
+        sys.exit(1)
+    
     # 检查是否在 Git 仓库中
     if not os.path.exists('.git'):
-        print("[SkoHit][AutoUpdate] Not a Git repo, auto-update disabled")
-        return
+        print("[SkoHit][FATAL] Not a Git repository! Please run in a Git repo.")
+        sys.exit(1)
     
     # 检查是否有远程仓库配置
     try:
         result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
         if 'origin' not in result.stdout:
-            print("[SkoHit][AutoUpdate] No remote configured, auto-update disabled")
-            return
+            print("[SkoHit][FATAL] No remote 'origin' configured! Please set up Git remote.")
+            sys.exit(1)
     except Exception:
-        print("[SkoHit][AutoUpdate] Git check failed, auto-update disabled")
-        return
+        print("[SkoHit][FATAL] Git remote check failed!")
+        sys.exit(1)
     
+    print("[SkoHit] Git environment check passed")
+
+def start_auto_update():
+    """启动自动更新线程（强制启用）"""
     # 启动后台线程
     update_thread = Thread(target=auto_update_worker, daemon=True)
     update_thread.start()
@@ -506,12 +469,13 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='SkoHit Music Server')
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
-    parser.add_argument('--no-auto-update', action='store_true', help='Disable auto update check')
     args = parser.parse_args()
 
-    # 启动自动更新监测
-    if not args.no_auto_update:
-        start_auto_update()
+    # 强制检查 Git 环境要求（必须满足，否则退出）
+    check_git_requirements()
+
+    # 强制启动自动更新监测
+    start_auto_update()
 
     print(f"Server running on http://0.0.0.0:{args.port}")
     app.run(host="0.0.0.0", debug=True, port=args.port, use_reloader=False)

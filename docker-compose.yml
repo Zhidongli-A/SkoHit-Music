@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  skohit-music:
+    build: .
+    container_name: SkoHit-Music
+    ports:
+      - "7000:7000"
+    environment:
+      - METING_API_URL=${METING_API_URL}
+    volumes:
+      # 持久化数据目录
+      - ./data:/app/data
+      # 环境变量文件
+      - ./.env:/app/.env
+    restart: unless-stopped

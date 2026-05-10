@@ -330,7 +330,6 @@ async function loadPlaylistDetail(id) {
         }, 100);
         
     } catch (e) {
-        document.getElementById('content-area').innerHTML = '<p>歌单加载失败</p>';
         console.error(e);
         isLoadingView = false;
     }
@@ -359,14 +358,14 @@ function enrichPlaylistDetail(items, signal) {
                         if (s.title) {
                             titleEl.textContent = s.title;
                         } else {
-                            titleEl.textContent = item.title || '未知歌曲';
+                            titleEl.textContent = item.title || '';
                         }
                     }
                     if (subEl) {
                         if (s.author) {
                             subEl.textContent = s.author;
                         } else {
-                            subEl.textContent = item.author || '未知艺术家';
+                            subEl.textContent = item.author || '';
                         }
                     }
                     item.title = s.title || item.title;
@@ -390,10 +389,10 @@ function enrichPlaylistDetail(items, signal) {
                     imgEl.innerHTML = '<i class="fas fa-music" style="color:#999;font-size:20px;"></i>';
                 }
                 if (titleEl && titleEl.textContent === '&nbsp;') {
-                    titleEl.textContent = item.title || '未知歌曲';
+                    titleEl.textContent = item.title || '';
                 }
                 if (subEl && subEl.textContent === '') {
-                    subEl.textContent = item.author || '未知艺术家';
+                    subEl.textContent = item.author || '';
                 }
             });
     });
@@ -505,14 +504,14 @@ async function enrichFavorites(songIds, signal) {
                     imgEl.style.backgroundPosition = 'center';
                     imgEl.classList.remove('skeleton');
                 }
-                if (titleEl) titleEl.textContent = s.title || '未知歌曲';
-                if (subEl) subEl.textContent = s.author || '未知艺术家';
-                
+                if (titleEl) titleEl.textContent = s.title || '';
+                if (subEl) subEl.textContent = s.author || '';
+
                 // 更新当前播放列表中的数据（保持顺序）
                 currentPlaylist[index] = {
                     id: String(songId),
-                    title: s.title || '未知歌曲',
-                    author: s.author || '未知艺术家',
+                    title: s.title || '',
+                    author: s.author || '',
                     pic: s.pic || '',
                     url: s.url || '',
                     lrc: s.lrc || ''
@@ -520,7 +519,7 @@ async function enrichFavorites(songIds, signal) {
             } else {
                 // API 返回空数组
                 const titleEl = document.getElementById(`fav-title-${songId}`);
-                if (titleEl) titleEl.textContent = '未知歌曲';
+                if (titleEl) titleEl.textContent = '';
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -536,7 +535,7 @@ async function enrichFavorites(songIds, signal) {
                 imgEl.style.backgroundColor = '#e5e5e5';
                 imgEl.innerHTML = '<i class="fas fa-music" style="color:#999;font-size:20px;"></i>';
             }
-            if (titleEl) titleEl.textContent = '未知歌曲';
+            if (titleEl) titleEl.textContent = '';
             if (subEl) subEl.textContent = '';
         }
     });

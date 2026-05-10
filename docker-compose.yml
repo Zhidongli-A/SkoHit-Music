@@ -8,6 +8,7 @@ services:
       - "7000:7000"
     environment:
       - METING_API_URL=${METING_API_URL}
+      - SKIP_GIT_CHECK=true
     volumes:
       # 持久化数据目录
       - ./data:/app/data

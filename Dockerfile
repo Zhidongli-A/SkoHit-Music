@@ -19,6 +19,9 @@ COPY . .
 # 创建数据目录
 RUN mkdir -p data
 
+# 设置环境变量（Docker 环境下跳过 Git 检查）
+ENV SKIP_GIT_CHECK=true
+
 # 暴露端口
 EXPOSE 7000
 

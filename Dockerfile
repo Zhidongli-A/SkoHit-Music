@@ -1,8 +1,9 @@
 # SkoHit Music - Docker 镜像
 FROM python:3.11-slim
 
-# 安装 Git（强制依赖）
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# 构建参数 - 用于注入版本号
+ARG VERSION=dev
+ENV APP_VERSION=${VERSION}
 
 # 设置工作目录
 WORKDIR /app

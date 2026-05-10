@@ -4,3 +4,4 @@ beautifulsoup4
 passlib
 bcrypt
 python-dotenv
+docker

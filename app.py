@@ -14,6 +14,11 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+# 配置项
+AUTO_UPDATE_ENABLED = os.getenv('AUTO_UPDATE', 'true').lower() == 'true'
+CONTAINER_MODE = os.getenv('CONTAINER_MODE', 'false').lower() == 'true'
+VERSION = os.getenv('APP_VERSION', 'dev')
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.permanent_session_lifetime = timedelta(days=90)
@@ -45,13 +50,34 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-UPDATE_CHECK_INTERVAL = 30  # 每30秒检查一次（已验证功能正常）
+UPDATE_CHECK_INTERVAL = 300  # 每5分钟检查一次
+UPDATE_IMAGE = os.getenv('UPDATE_IMAGE', 'skohit/skohit-music:latest')
+CONTAINER_NAME = os.getenv('CONTAINER_NAME', 'skohit-music')
+
 last_commit_hash = None
+last_image_digest = None
+
+def is_running_in_container():
+    """检测是否在容器环境中运行"""
+    # 方法1: 检查 /.dockerenv 文件
+    if os.path.exists('/.dockerenv'):
+        return True
+    # 方法2: 检查 cgroup
+    try:
+        with open('/proc/self/cgroup', 'r') as f:
+            return 'docker' in f.read() or 'containerd' in f.read()
+    except:
+        pass
+    # 方法3: 环境变量标记
+    if CONTAINER_MODE:
+        return True
+    return False
+
+# ==================== Git 更新模式 (本地部署) ====================
 
 def get_remote_commit_hash():
     """获取远程仓库最新 commit hash"""
     try:
-        # 获取远程分支最新 commit
         result = subprocess.run(
             ['git', 'ls-remote', 'origin', 'HEAD'],
             capture_output=True, text=True, timeout=10
@@ -97,34 +123,26 @@ def restart_service():
     """重启服务 - 启动新进程并退出当前进程"""
     print("[SkoHit][AutoUpdate] Restarting service...")
     
-    # 获取当前运行的参数
-    import sys
     args = sys.argv.copy()
     
-    # 在新进程中启动
     if sys.platform == 'win32':
-        # Windows
         subprocess.Popen([sys.executable] + args, 
                          creationflags=subprocess.CREATE_NEW_CONSOLE)
     else:
-        # Linux/Mac
         subprocess.Popen([sys.executable] + args,
                          stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
     
     print("[SkoHit][AutoUpdate] New process started, exiting current process")
-    
-    # 退出当前进程
     os._exit(0)
 
-def auto_update_worker():
-    """自动更新工作线程"""
+def git_update_worker():
+    """Git 模式更新工作线程"""
     global last_commit_hash
     
-    # 初始获取本地版本
     last_commit_hash = get_local_commit_hash()
-    print(f"[SkoHit][AutoUpdate] Current version: {last_commit_hash}")
-    print(f"[SkoHit][AutoUpdate] Check interval: {UPDATE_CHECK_INTERVAL}s")
+    print(f"[SkoHit][GitUpdate] Current version: {last_commit_hash[:8] if last_commit_hash else 'unknown'}")
+    print(f"[SkoHit][GitUpdate] Check interval: {UPDATE_CHECK_INTERVAL}s")
     
     check_count = 0
     while True:
@@ -132,67 +150,238 @@ def auto_update_worker():
         check_count += 1
         
         try:
-            print(f"[SkoHit][AutoUpdate] Check #{check_count}...")
+            print(f"[SkoHit][GitUpdate] Check #{check_count}...")
             
-            # 检查远程是否有更新
             remote_hash = get_remote_commit_hash()
             if not remote_hash:
-                print(f"[SkoHit][AutoUpdate] Failed to get remote version, skip")
+                print(f"[SkoHit][GitUpdate] Failed to get remote version, skip")
                 continue
             
-            print(f"[SkoHit][AutoUpdate] Local: {last_commit_hash[:8]}... Remote: {remote_hash[:8]}...")
+            print(f"[SkoHit][GitUpdate] Local: {last_commit_hash[:8] if last_commit_hash else 'none'}... Remote: {remote_hash[:8]}...")
             
             if remote_hash != last_commit_hash:
-                print(f"[SkoHit][AutoUpdate] Update detected!")
-                print(f"[SkoHit][AutoUpdate] Local: {last_commit_hash}")
-                print(f"[SkoHit][AutoUpdate] Remote: {remote_hash}")
+                print(f"[SkoHit][GitUpdate] Update detected!")
                 
-                # Pull latest code and restart
                 if pull_latest_code():
                     last_commit_hash = get_local_commit_hash()
-                    print("[SkoHit][AutoUpdate] Update complete, restarting...")
-                    time.sleep(5)
+                    print("[SkoHit][GitUpdate] Update complete, restarting...")
+                    time.sleep(3)
                     restart_service()
                 else:
-                    print("[SkoHit][AutoUpdate] Pull failed, cancel restart")
+                    print("[SkoHit][GitUpdate] Pull failed, cancel restart")
         except Exception as e:
-            print(f"[SkoHit][AutoUpdate] Error: {e}")
+            print(f"[SkoHit][GitUpdate] Error: {e}")
+
+# ==================== Docker 更新模式 (容器部署) ====================
+
+def get_image_digest(image_name):
+    """获取镜像的 digest"""
+    try:
+        import docker
+        client = docker.from_env()
+        image = client.images.get(image_name)
+        if image.attrs.get('RepoDigests'):
+            return image.attrs['RepoDigests'][0].split('@')[1]
+    except Exception as e:
+        print(f"[SkoHit][DockerUpdate] Failed to get local digest: {e}")
+    return None
+
+def get_remote_image_digest(image_name):
+    """获取远程仓库镜像 digest"""
+    try:
+        import docker
+        client = docker.from_env()
+        # 查询 registry 不拉取
+        distribution = client.api.inspect_distribution(image_name)
+        if 'Descriptor' in distribution:
+            return distribution['Descriptor']['digest']
+    except Exception as e:
+        print(f"[SkoHit][DockerUpdate] Failed to get remote digest: {e}")
+    return None
+
+def docker_self_update():
+    """Docker 容器自更新 - 方案一：先删后建"""
+    try:
+        import docker
+        client = docker.from_env()
+        
+        print(f"[SkoHit][DockerUpdate] Starting self-update...")
+        print(f"[SkoHit][DockerUpdate] Target image: {UPDATE_IMAGE}")
+        print(f"[SkoHit][DockerUpdate] Container name: {CONTAINER_NAME}")
+        
+        # 1. 拉取最新镜像
+        print("[SkoHit][DockerUpdate] Pulling latest image...")
+        client.images.pull(UPDATE_IMAGE)
+        print("[SkoHit][DockerUpdate] Image pulled successfully")
+        
+        # 2. 获取当前容器的配置
+        current_container = None
+        current_config = None
+        try:
+            current_container = client.containers.get(CONTAINER_NAME)
+            # 保存配置用于重建
+            host_config = current_container.attrs['HostConfig']
+            config = current_container.attrs['Config']
+            
+            current_config = {
+                'image': UPDATE_IMAGE,
+                'name': CONTAINER_NAME,
+                'detach': True,
+                'ports': host_config.get('PortBindings', {}),
+                'volumes': {},
+                'environment': config.get('Env', []),
+                'restart_policy': host_config.get('RestartPolicy', {'Name': 'unless-stopped'}),
+                'network_mode': host_config.get('NetworkMode'),
+            }
+            
+            # 处理卷挂载
+            binds = host_config.get('Binds', [])
+            for bind in binds:
+                parts = bind.split(':')
+                if len(parts) >= 2:
+                    host_path = parts[0]
+                    container_path = parts[1]
+                    mode = parts[2] if len(parts) > 2 else 'rw'
+                    current_config['volumes'][host_path] = {
+                        'bind': container_path,
+                        'mode': mode
+                    }
+            
+        except docker.errors.NotFound:
+            print(f"[SkoHit][DockerUpdate] Container {CONTAINER_NAME} not found, using default config")
+            current_config = {
+                'image': UPDATE_IMAGE,
+                'name': CONTAINER_NAME,
+                'detach': True,
+                'ports': {'7000/tcp': ('0.0.0.0', 7000)},
+                'volumes': {
+                    '/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}
+                },
+                'environment': [f'AUTO_UPDATE=true', f'CONTAINER_MODE=true'],
+                'restart_policy': {'Name': 'unless-stopped'}
+            }
+        
+        # 3. 停止并删除旧容器（释放名称和端口）
+        if current_container:
+            print("[SkoHit][DockerUpdate] Stopping old container...")
+            try:
+                current_container.stop(timeout=10)
+                current_container.remove(force=True)
+                print("[SkoHit][DockerUpdate] Old container removed")
+            except Exception as e:
+                print(f"[SkoHit][DockerUpdate] Warning: failed to remove old container: {e}")
+        
+        # 等待一下确保端口释放
+        time.sleep(2)
+        
+        # 4. 启动新容器
+        print("[SkoHit][DockerUpdate] Starting new container...")
+        new_container = client.containers.run(**current_config)
+        print(f"[SkoHit][DockerUpdate] New container started: {new_container.short_id}")
+        
+        # 5. 自己退出
+        print("[SkoHit][DockerUpdate] Update complete, exiting...")
+        time.sleep(2)
+        os._exit(0)
+        
+    except Exception as e:
+        print(f"[SkoHit][DockerUpdate] Update failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def docker_update_worker():
+    """Docker 模式更新工作线程"""
+    global last_image_digest
+    
+    print(f"[SkoHit][DockerUpdate] Container mode enabled")
+    print(f"[SkoHit][DockerUpdate] Image: {UPDATE_IMAGE}")
+    print(f"[SkoHit][DockerUpdate] Check interval: {UPDATE_CHECK_INTERVAL}s")
+    
+    # 获取当前镜像 digest
+    last_image_digest = get_image_digest(UPDATE_IMAGE)
+    print(f"[SkoHit][DockerUpdate] Current digest: {last_image_digest[:19] if last_image_digest else 'unknown'}...")
+    
+    check_count = 0
+    while True:
+        time.sleep(UPDATE_CHECK_INTERVAL)
+        check_count += 1
+        
+        try:
+            print(f"[SkoHit][DockerUpdate] Check #{check_count}...")
+            
+            # 获取远程 digest
+            remote_digest = get_remote_image_digest(UPDATE_IMAGE)
+            if not remote_digest:
+                print(f"[SkoHit][DockerUpdate] Failed to get remote digest, skip")
+                continue
+            
+            print(f"[SkoHit][DockerUpdate] Local: {last_image_digest[:19] if last_image_digest else 'none'}... Remote: {remote_digest[:19]}...")
+            
+            if remote_digest != last_image_digest:
+                print(f"[SkoHit][DockerUpdate] Update detected!")
+                if docker_self_update():
+                    print("[SkoHit][DockerUpdate] Self-update triggered")
+                    # docker_self_update 会调用 os._exit(0)，这里不会执行
+                else:
+                    print("[SkoHit][DockerUpdate] Self-update failed")
+            else:
+                print(f"[SkoHit][DockerUpdate] Already up to date")
+                
+        except Exception as e:
+            print(f"[SkoHit][DockerUpdate] Error: {e}")
+
+# ==================== 统一入口 ====================
 
 def check_git_requirements():
-    """检查 Git 环境要求，不满足则退出程序"""
-    # 检查 Git 命令是否可用
+    """检查 Git 环境要求"""
+    if is_running_in_container():
+        print("[SkoHit] Running in container, skip Git check")
+        return True
+        
     try:
         result = subprocess.run(['git', '--version'], capture_output=True, text=True)
         if result.returncode != 0:
             print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
-            sys.exit(1)
+            return False
     except Exception:
         print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
-        sys.exit(1)
+        return False
     
-    # 检查是否在 Git 仓库中
     if not os.path.exists('.git'):
         print("[SkoHit][FATAL] Not a Git repository! Please run in a Git repo.")
-        sys.exit(1)
+        return False
     
-    # 检查是否有远程仓库配置
     try:
         result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
         if 'origin' not in result.stdout:
             print("[SkoHit][FATAL] No remote 'origin' configured! Please set up Git remote.")
-            sys.exit(1)
+            return False
     except Exception:
         print("[SkoHit][FATAL] Git remote check failed!")
-        sys.exit(1)
+        return False
     
     print("[SkoHit] Git environment check passed")
+    return True
 
 def start_auto_update():
-    """启动自动更新线程（强制启用）"""
-    # 启动后台线程
-    update_thread = Thread(target=auto_update_worker, daemon=True)
-    update_thread.start()
-    print("[SkoHit][AutoUpdate] Auto-update monitoring started")
+    """启动自动更新线程 - 根据环境自动选择模式"""
+    if not AUTO_UPDATE_ENABLED:
+        print("[SkoHit][AutoUpdate] Auto-update is disabled")
+        return
+    
+    if is_running_in_container():
+        # 容器模式 - 使用 Docker 自更新
+        print("[SkoHit][AutoUpdate] Mode: Docker Container Self-Update")
+        update_thread = Thread(target=docker_update_worker, daemon=True)
+        update_thread.start()
+        print("[SkoHit][AutoUpdate] Docker auto-update monitoring started")
+    else:
+        # 本地模式 - 使用 Git 更新
+        print("[SkoHit][AutoUpdate] Mode: Git Source Update")
+        update_thread = Thread(target=git_update_worker, daemon=True)
+        update_thread.start()
+        print("[SkoHit][AutoUpdate] Git auto-update monitoring started")
 
 # --- Helpers ---
 # (helper functions removed - now handled in json_db.py)
@@ -471,10 +660,19 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
     args = parser.parse_args()
 
-    # 强制检查 Git 环境要求（必须满足，否则退出）
-    check_git_requirements()
+    # 检测运行环境
+    if is_running_in_container():
+        print("[SkoHit] Running in Docker container mode")
+        print(f"[SkoHit] Version: {VERSION}")
+        print(f"[SkoHit] Image: {UPDATE_IMAGE}")
+    else:
+        print("[SkoHit] Running in native mode")
+        # 本地模式检查 Git 环境
+        if not check_git_requirements():
+            print("[SkoHit][FATAL] Git environment check failed, exiting")
+            sys.exit(1)
 
-    # 强制启动自动更新监测
+    # 启动自动更新监测
     start_auto_update()
 
     print(f"Server running on http://0.0.0.0:{args.port}")

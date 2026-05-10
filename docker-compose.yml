@@ -3,14 +3,21 @@ version: '3.8'
 services:
   skohit-music:
     image: skohit/skohit-music:latest
-    container_name: SkoHit-Music
+    container_name: skohit-music
     ports:
       - "7000:7000"
     environment:
       - METING_API_URL=${METING_API_URL}
+      - AUTO_UPDATE=true              # 启用自动更新
+      - CONTAINER_MODE=true           # 标记为容器模式
+      - UPDATE_IMAGE=skohit/skohit-music:latest
+      - CONTAINER_NAME=skohit-music
+      - APP_VERSION=${VERSION:-latest}
     volumes:
       # 持久化数据目录
       - ./data:/app/data
       # 环境变量文件
       - ./.env:/app/.env
+      # Docker Socket - 用于容器自更新（关键）
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped

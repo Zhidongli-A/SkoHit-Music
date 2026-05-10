@@ -520,7 +520,7 @@ async function enrichFavorites(songIds, signal) {
             } else {
                 // API 返回空数组
                 const titleEl = document.getElementById(`fav-title-${songId}`);
-                if (titleEl) titleEl.textContent = '歌曲信息不可用';
+                if (titleEl) titleEl.textContent = '未知歌曲';
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -536,7 +536,7 @@ async function enrichFavorites(songIds, signal) {
                 imgEl.style.backgroundColor = '#e5e5e5';
                 imgEl.innerHTML = '<i class="fas fa-music" style="color:#999;font-size:20px;"></i>';
             }
-            if (titleEl) titleEl.textContent = '加载失败';
+            if (titleEl) titleEl.textContent = '未知歌曲';
             if (subEl) subEl.textContent = '';
         }
     });

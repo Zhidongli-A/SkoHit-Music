@@ -1,5 +1,5 @@
-# Git
-.git
+# Git - 保留 .git 目录以便应用识别为仓库
+# .git
 .gitignore
 
 # Python

@@ -159,12 +159,7 @@ def auto_update_worker():
             print(f"[SkoHit][AutoUpdate] Error: {e}")
 
 def check_git_requirements():
-    """检查 Git 环境要求，不满足则退出程序（Docker 环境下可跳过）"""
-    # 检查是否设置了跳过 Git 检查的环境变量（Docker 环境使用）
-    if os.getenv('SKIP_GIT_CHECK', '').lower() == 'true':
-        print("[SkoHit] SKIP_GIT_CHECK is set, skipping Git environment check")
-        return
-    
+    """检查 Git 环境要求，不满足则退出程序"""
     # 检查 Git 命令是否可用
     try:
         result = subprocess.run(['git', '--version'], capture_output=True, text=True)

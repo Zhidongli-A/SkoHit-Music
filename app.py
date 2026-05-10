@@ -197,6 +197,68 @@ def get_remote_image_digest(image_name):
         print(f"[SkoHit][DockerUpdate] Failed to get remote digest: {e}")
     return None
 
+def parse_bind_mount(bind):
+    """
+    安全地解析 bind mount 字符串，支持 Windows 和 Linux 路径
+    格式: host_path:container_path[:mode]
+    Windows 示例: C:\data:/app/data:rw
+    Linux 示例: /var/data:/app/data:ro
+    """
+    # 找到最后一个冒号后面是否是 mode (ro/rw)
+    # 从右向左找，最后一个冒号如果是 rw 或 ro，则是 mode
+    parts = bind.rsplit(':', 2)
+    
+    if len(parts) == 3 and parts[2] in ('ro', 'rw'):
+        # host_path:container_path:mode
+        host_path = parts[0]
+        container_path = parts[1]
+        mode = parts[2]
+    elif len(parts) >= 2:
+        # host_path:container_path (default mode: rw)
+        host_path = parts[0] if len(parts) == 2 else ':'.join(parts[:-1])
+        container_path = parts[-1]
+        mode = 'rw'
+    else:
+        return None
+    
+    return {'host_path': host_path, 'container_path': container_path, 'mode': mode}
+
+
+def convert_port_bindings(port_bindings):
+    """
+    将 PortBindings 格式转换为 ports 格式
+    PortBindings: {'7000/tcp': [{'HostIp': '', 'HostPort': '7000'}]}
+    ports: {'7000/tcp': 7000} 或 {'7000/tcp': ('0.0.0.0', 7000)}
+    """
+    ports = {}
+    for container_port, bindings in port_bindings.items():
+        if bindings:
+            for binding in bindings:
+                host_ip = binding.get('HostIp', '0.0.0.0')
+                host_port = binding.get('HostPort')
+                if host_port:
+                    if host_ip and host_ip != '0.0.0.0':
+                        ports[container_port] = (host_ip, int(host_port))
+                    else:
+                        ports[container_port] = int(host_port)
+    return ports
+
+
+def convert_restart_policy(restart_policy):
+    """
+    将 HostConfig.RestartPolicy 转换为 docker-py 可用的格式
+    HostConfig: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+    docker-py: {'Name': 'unless-stopped'} 或 {'Name': 'on-failure', 'MaximumRetryCount': 5}
+    """
+    if not restart_policy or not restart_policy.get('Name'):
+        return {'Name': 'unless-stopped'}
+    
+    result = {'Name': restart_policy['Name']}
+    if restart_policy['Name'] == 'on-failure' and restart_policy.get('MaximumRetryCount', 0) > 0:
+        result['MaximumRetryCount'] = restart_policy['MaximumRetryCount']
+    return result
+
+
 def docker_self_update():
     """Docker 容器自更新 - 方案一：先删后建"""
     try:
@@ -221,29 +283,39 @@ def docker_self_update():
             host_config = current_container.attrs['HostConfig']
             config = current_container.attrs['Config']
             
+            # 转换端口映射格式
+            port_bindings = host_config.get('PortBindings', {})
+            ports = convert_port_bindings(port_bindings)
+            
+            # 转换 restart_policy 格式
+            restart_policy = convert_restart_policy(host_config.get('RestartPolicy'))
+            
             current_config = {
                 'image': UPDATE_IMAGE,
                 'name': CONTAINER_NAME,
                 'detach': True,
-                'ports': host_config.get('PortBindings', {}),
+                'ports': ports,
                 'volumes': {},
                 'environment': config.get('Env', []),
-                'restart_policy': host_config.get('RestartPolicy', {'Name': 'unless-stopped'}),
+                'restart_policy': restart_policy,
                 'network_mode': host_config.get('NetworkMode'),
             }
             
-            # 处理卷挂载
+            # 处理卷挂载 - 使用安全的解析方法
             binds = host_config.get('Binds', [])
             for bind in binds:
-                parts = bind.split(':')
-                if len(parts) >= 2:
-                    host_path = parts[0]
-                    container_path = parts[1]
-                    mode = parts[2] if len(parts) > 2 else 'rw'
-                    current_config['volumes'][host_path] = {
-                        'bind': container_path,
-                        'mode': mode
+                parsed = parse_bind_mount(bind)
+                if parsed:
+                    current_config['volumes'][parsed['host_path']] = {
+                        'bind': parsed['container_path'],
+                        'mode': parsed['mode']
                     }
+                    print(f"[SkoHit][DockerUpdate] Volume: {parsed['host_path']} -> {parsed['container_path']} ({parsed['mode']})")
+                else:
+                    print(f"[SkoHit][DockerUpdate] Warning: Failed to parse bind mount: {bind}")
+            
+            print(f"[SkoHit][DockerUpdate] Port config: {ports}")
+            print(f"[SkoHit][DockerUpdate] Restart policy: {restart_policy}")
             
         except docker.errors.NotFound:
             print(f"[SkoHit][DockerUpdate] Container {CONTAINER_NAME} not found, using default config")
@@ -251,11 +323,11 @@ def docker_self_update():
                 'image': UPDATE_IMAGE,
                 'name': CONTAINER_NAME,
                 'detach': True,
-                'ports': {'7000/tcp': ('0.0.0.0', 7000)},
+                'ports': {7000: 7000},
                 'volumes': {
                     '/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}
                 },
-                'environment': [f'AUTO_UPDATE=true', f'CONTAINER_MODE=true'],
+                'environment': ['AUTO_UPDATE=true', 'CONTAINER_MODE=true'],
                 'restart_policy': {'Name': 'unless-stopped'}
             }
         
@@ -274,6 +346,7 @@ def docker_self_update():
         
         # 4. 启动新容器
         print("[SkoHit][DockerUpdate] Starting new container...")
+        print(f"[SkoHit][DockerUpdate] Config: {current_config}")
         new_container = client.containers.run(**current_config)
         print(f"[SkoHit][DockerUpdate] New container started: {new_container.short_id}")
         

@@ -15,9 +15,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 配置项
-AUTO_UPDATE_ENABLED = os.getenv('AUTO_UPDATE', 'true').lower() == 'true'
-CONTAINER_MODE = os.getenv('CONTAINER_MODE', 'false').lower() == 'true'
 VERSION = os.getenv('APP_VERSION', 'dev')
+
+# 强制启用自动更新
+AUTO_UPDATE_ENABLED = True
+UPDATE_CHECK_INTERVAL = 60  # 每60秒检查一次
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -50,7 +52,6 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-UPDATE_CHECK_INTERVAL = 300  # 每5分钟检查一次
 UPDATE_IMAGE = os.getenv('UPDATE_IMAGE', 'skohit/skohit-music:latest')
 CONTAINER_NAME = os.getenv('CONTAINER_NAME', 'skohit-music')
 
@@ -68,9 +69,6 @@ def is_running_in_container():
             return 'docker' in f.read() or 'containerd' in f.read()
     except:
         pass
-    # 方法3: 环境变量标记
-    if CONTAINER_MODE:
-        return True
     return False
 
 # ==================== Git 更新模式 (本地部署) ====================

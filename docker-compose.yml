@@ -8,8 +8,6 @@ services:
       - "7000:7000"
     environment:
       - METING_API_URL=${METING_API_URL}
-      - AUTO_UPDATE=true              # 启用自动更新
-      - CONTAINER_MODE=true           # 标记为容器模式
       - UPDATE_IMAGE=skohit/skohit-music:latest
       - CONTAINER_NAME=skohit-music
       - APP_VERSION=${VERSION:-latest}

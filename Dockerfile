@@ -5,6 +5,9 @@ FROM python:3.11-slim
 ARG VERSION=dev
 ENV APP_VERSION=${VERSION}
 
+# 强制 Python 无缓冲输出，确保日志实时显示
+ENV PYTHONUNBUFFERED=1
+
 # 设置工作目录
 WORKDIR /app
 

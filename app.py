@@ -1,5 +1,9 @@
 import os
 import sys
+
+# 强制 stdout 无缓冲输出，确保 Docker 日志实时显示
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+
 import hashlib
 import requests
 import functools

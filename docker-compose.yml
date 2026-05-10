@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   skohit-music:
-    build: .
+    image: skohit/skohit-music:latest
     container_name: SkoHit-Music
     ports:
       - "7000:7000"

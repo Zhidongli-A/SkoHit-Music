@@ -176,11 +176,41 @@ def git_update_worker():
 
 # ==================== Docker 更新模式 (容器部署) ====================
 
+def get_docker_client():
+    """获取 Docker 客户端，支持多种连接方式"""
+    import docker
+    
+    # 1. 首先尝试从环境变量获取 Docker 主机地址
+    # 支持 DOCKER_HOST=tcp://host:port 或 DOCKER_HOST=unix:///path/to.sock
+    docker_host = os.getenv('DOCKER_HOST', '').strip()
+    
+    if docker_host:
+        print(f"[SkoHit][DockerUpdate] Using DOCKER_HOST: {docker_host}")
+        return docker.DockerClient(base_url=docker_host)
+    
+    # 2. 尝试默认方式 (从环境变量或默认 socket)
+    try:
+        client = docker.from_env()
+        # 测试连接
+        client.ping()
+        return client
+    except Exception as e:
+        # 检查 socket 文件是否存在
+        default_sock = '/var/run/docker.sock'
+        if os.path.exists(default_sock):
+            print(f"[SkoHit][DockerUpdate] Socket exists but connection failed: {e}")
+        else:
+            print(f"[SkoHit][DockerUpdate] Docker socket not found at {default_sock}")
+            print(f"[SkoHit][DockerUpdate] Please ensure:")
+            print(f"  1. Docker is running on the host")
+            print(f"  2. /var/run/docker.sock is mounted to container")
+            print(f"  3. Or set DOCKER_HOST environment variable (e.g., tcp://host:2375)")
+        raise
+
 def get_image_digest(image_name):
     """获取镜像的 digest"""
     try:
-        import docker
-        client = docker.from_env()
+        client = get_docker_client()
         image = client.images.get(image_name)
         if image.attrs.get('RepoDigests'):
             return image.attrs['RepoDigests'][0].split('@')[1]
@@ -191,8 +221,7 @@ def get_image_digest(image_name):
 def get_remote_image_digest(image_name):
     """获取远程仓库镜像 digest"""
     try:
-        import docker
-        client = docker.from_env()
+        client = get_docker_client()
         # 查询 registry 不拉取
         distribution = client.api.inspect_distribution(image_name)
         if 'Descriptor' in distribution:
@@ -267,7 +296,7 @@ def docker_self_update():
     """Docker 容器自更新 - 方案一：先删后建"""
     try:
         import docker
-        client = docker.from_env()
+        client = get_docker_client()
         
         print(f"[SkoHit][DockerUpdate] Starting self-update...")
         print(f"[SkoHit][DockerUpdate] Target image: {UPDATE_IMAGE}")

@@ -10,7 +10,9 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: SkoHit/SkoHit-Music
+  IMAGE_NAME: skohit/skohit-music
+  # 强制使用 Node.js 24
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -51,7 +53,7 @@ jobs:
 
     - name: Build and push Docker image
       id: build-and-push
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64,linux/arm64

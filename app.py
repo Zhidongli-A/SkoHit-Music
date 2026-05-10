@@ -231,7 +231,7 @@ def get_remote_image_digest(image_name):
     return None
 
 def parse_bind_mount(bind):
-    """
+    r"""
     安全地解析 bind mount 字符串，支持 Windows 和 Linux 路径
     格式: host_path:container_path[:mode]
     Windows 示例: C:\data:/app/data:rw

@@ -8,6 +8,9 @@ ENV APP_VERSION=${VERSION}
 # 强制 Python 无缓冲输出，确保日志实时显示
 ENV PYTHONUNBUFFERED=1
 
+# 禁用 Git 交互式用户名密码提示（公开仓库匿名访问）
+ENV GIT_TERMINAL_PROMPT=0
+
 # 设置工作目录
 WORKDIR /app
 

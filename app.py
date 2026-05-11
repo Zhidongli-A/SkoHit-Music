@@ -75,27 +75,14 @@ def is_running_in_container():
 def get_remote_commit_hash():
     """获取远程仓库最新 commit hash"""
     try:
-        # 先检查 origin 的 URL
-        result = subprocess.run(
-            ['git', 'remote', 'get-url', 'origin'],
-            capture_output=True, text=True, timeout=5
-        )
-        remote_url = result.stdout.strip() if result.returncode == 0 else 'unknown'
-        print(f"[SkoHit][GitUpdate] Remote URL: {remote_url}")
-        
-        # 获取远程 HEAD
         result = subprocess.run(
             ['git', 'ls-remote', 'origin', 'HEAD'],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0 and result.stdout.strip():
-            commit_hash = result.stdout.split()[0]
-            print(f"[SkoHit][GitUpdate] Remote HEAD: {commit_hash[:8]}")
-            return commit_hash
-        else:
-            print(f"[SkoHit][GitUpdate] ls-remote failed: {result.stderr.strip() or 'empty output'}")
+            return result.stdout.split()[0]
     except Exception as e:
-        print(f"[SkoHit][GitUpdate] Failed to get remote version: {e}")
+        print(f"[SkoHit][GitUpdate] Error: {e}")
     return None
 
 def get_local_commit_hash():
@@ -108,7 +95,7 @@ def get_local_commit_hash():
         if result.returncode == 0:
             return result.stdout.strip()
     except Exception as e:
-        print(f"[SkoHit][AutoUpdate] Failed to get local version: {e}")
+        print(f"[SkoHit][GitUpdate] Error: {e}")
     return None
 
 def get_default_branch():
@@ -143,24 +130,19 @@ def pull_latest_code():
     """拉取最新代码"""
     try:
         branch = get_default_branch()
-        print(f"[SkoHit][AutoUpdate] Pulling latest code from origin/{branch}...")
         result = subprocess.run(
             ['git', 'pull', 'origin', branch],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            print("[SkoHit][AutoUpdate] Code updated successfully")
             return True
-        else:
-            print(f"[SkoHit][AutoUpdate] Code update failed: {result.stderr}")
-            return False
     except Exception as e:
-        print(f"[SkoHit][AutoUpdate] Pull error: {e}")
-        return False
+        print(f"[SkoHit][GitUpdate] Pull error: {e}")
+    return False
 
 def restart_service():
     """重启服务 - 启动新进程并退出当前进程"""
-    print("[SkoHit][AutoUpdate] Restarting service...")
+    print("[SkoHit][GitUpdate] Restarting...")
 
     args = sys.argv.copy()
 
@@ -172,11 +154,8 @@ def restart_service():
                          stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
 
-    print("[SkoHit][AutoUpdate] New process started, exiting current process")
-
-    # 在容器中使用非零退出码，确保 Docker 的 restart 策略能正确重启容器
     if is_running_in_container():
-        os._exit(42)  # 使用特殊退出码表示是更新重启
+        os._exit(42)
     else:
         os._exit(0)
 
@@ -186,8 +165,7 @@ def git_update_worker():
 
     last_commit_hash = get_local_commit_hash()
     current_version = last_commit_hash[:8] if last_commit_hash else 'unknown'
-    print(f"[SkoHit][GitUpdate] Current version: {current_version}")
-    print(f"[SkoHit][GitUpdate] Check interval: {UPDATE_CHECK_INTERVAL}s")
+    print(f"[SkoHit][GitUpdate] Version: {current_version}, interval: {UPDATE_CHECK_INTERVAL}s")
 
     check_count = 0
     while True:
@@ -195,27 +173,18 @@ def git_update_worker():
         check_count += 1
 
         try:
-            print(f"[SkoHit][GitUpdate] Check #{check_count}...")
-
             remote_hash = get_remote_commit_hash()
             if not remote_hash:
-                print(f"[SkoHit][GitUpdate] Failed to get remote version, skip")
                 continue
 
-            local_short = last_commit_hash[:8] if last_commit_hash else 'none'
-            remote_short = remote_hash[:8] if remote_hash else 'none'
-            print(f"[SkoHit][GitUpdate] Local: {local_short}... Remote: {remote_short}...")
-
             if remote_hash != last_commit_hash:
-                print(f"[SkoHit][GitUpdate] Update detected!")
+                print(f"[SkoHit][GitUpdate] Update detected, pulling...")
 
                 if pull_latest_code():
                     last_commit_hash = get_local_commit_hash()
-                    print("[SkoHit][GitUpdate] Update complete, restarting...")
+                    print("[SkoHit][GitUpdate] Updated, restarting...")
                     time.sleep(3)
                     restart_service()
-                else:
-                    print("[SkoHit][GitUpdate] Pull failed, cancel restart")
         except Exception as e:
             print(f"[SkoHit][GitUpdate] Error: {e}")
 
@@ -225,43 +194,42 @@ def git_update_worker():
 
 def check_git_requirements():
     """检查 Git 环境要求"""
-    print("[SkoHit] Checking Git environment...")
+    print("[SkoHit] Checking Git...")
 
     try:
         result = subprocess.run(['git', '--version'], capture_output=True, text=True)
         if result.returncode != 0:
-            print("[SkoHit][FATAL] Git is not installed!")
+            print("[SkoHit] Git not installed")
             return False
     except Exception:
-        print("[SkoHit][FATAL] Git is not installed!")
+        print("[SkoHit] Git not installed")
         return False
 
     if not os.path.exists('.git'):
-        print("[SkoHit][FATAL] Not a Git repository!")
+        print("[SkoHit] Not a Git repository")
         return False
 
     try:
         result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
         if 'origin' not in result.stdout:
-            print("[SkoHit][FATAL] No remote 'origin' configured!")
+            print("[SkoHit] No remote 'origin'")
             return False
     except Exception:
-        print("[SkoHit][FATAL] Git remote check failed!")
+        print("[SkoHit] Git remote check failed")
         return False
 
-    print("[SkoHit] Git environment check passed")
+    print("[SkoHit] Git OK")
     return True
 
 def start_auto_update():
-    """启动自动更新线程 - 统一使用 Git 更新模式"""
+    """启动自动更新线程"""
     if not AUTO_UPDATE_ENABLED:
-        print("[SkoHit][AutoUpdate] Auto-update is disabled")
+        print("[SkoHit] Auto-update disabled")
         return
 
-    print("[SkoHit][AutoUpdate] Git auto-update enabled")
+    print("[SkoHit] Git auto-update enabled")
     update_thread = Thread(target=git_update_worker, daemon=True)
     update_thread.start()
-    print("[SkoHit][AutoUpdate] Git auto-update monitoring started")
 
 # --- Helpers ---
 # (helper functions removed - now handled in json_db.py)
@@ -540,13 +508,12 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
     args = parser.parse_args()
 
-    print(f"[SkoHit] SkoHit Music Server v{VERSION}")
+    print(f"[SkoHit] SkoHit Music v{VERSION}")
 
     if not check_git_requirements():
-        print("[SkoHit][FATAL] Git environment check failed, exiting")
+        print("[SkoHit] Git check failed, exiting")
         sys.exit(1)
 
-    # 启动自动更新监测
     start_auto_update()
 
     print(f"Server running on http://0.0.0.0:{args.port}")

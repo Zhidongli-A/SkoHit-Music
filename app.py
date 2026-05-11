@@ -165,7 +165,7 @@ def git_update_worker():
 
     last_commit_hash = get_local_commit_hash()
     current_version = last_commit_hash[:8] if last_commit_hash else 'unknown'
-    print(f"[SkoHit][GitUpdate] Version: {current_version}, interval: {UPDATE_CHECK_INTERVAL}s")
+    print(f"[SkoHit][GitUpdate] Current: {current_version}, check interval: {UPDATE_CHECK_INTERVAL}s")
 
     check_count = 0
     while True:
@@ -173,9 +173,16 @@ def git_update_worker():
         check_count += 1
 
         try:
+            print(f"[SkoHit][GitUpdate] Check #{check_count}")
+
             remote_hash = get_remote_commit_hash()
             if not remote_hash:
+                print(f"[SkoHit][GitUpdate] Skip: cannot get remote version")
                 continue
+
+            local_short = last_commit_hash[:8] if last_commit_hash else 'none'
+            remote_short = remote_hash[:8] if remote_hash else 'none'
+            print(f"[SkoHit][GitUpdate] Local: {local_short}, Remote: {remote_short}")
 
             if remote_hash != last_commit_hash:
                 print(f"[SkoHit][GitUpdate] Update detected, pulling...")
@@ -185,6 +192,10 @@ def git_update_worker():
                     print("[SkoHit][GitUpdate] Updated, restarting...")
                     time.sleep(3)
                     restart_service()
+                else:
+                    print("[SkoHit][GitUpdate] Pull failed, will retry next check")
+            else:
+                print("[SkoHit][GitUpdate] No update")
         except Exception as e:
             print(f"[SkoHit][GitUpdate] Error: {e}")
 
@@ -201,6 +212,7 @@ def check_git_requirements():
         if result.returncode != 0:
             print("[SkoHit] Git not installed")
             return False
+        print(f"[SkoHit] Git: {result.stdout.strip()}")
     except Exception:
         print("[SkoHit] Git not installed")
         return False

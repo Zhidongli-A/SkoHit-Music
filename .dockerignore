@@ -1,5 +1,5 @@
-# Git - 保留 .git 目录以便应用识别为仓库
-# .git
+# Git - 保留 .git 目录以便自动更新
+# 注意：不要排除 .git，否则容器内无法 git pull
 .gitignore
 
 # Python

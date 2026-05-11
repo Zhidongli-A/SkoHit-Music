@@ -31,7 +31,8 @@ RUN chmod -R 755 .git 2>/dev/null || true
 # 配置 Git 全局设置（容器内需要）
 RUN git config --global user.email "docker@skohit.local" && \
     git config --global user.name "SkoHit Docker" && \
-    git config --global pull.rebase false
+    git config --global pull.rebase false && \
+    git remote set-url origin https://github.com/Zhidongli-A/SkoHit-Music.git
 
 # 创建数据目录
 RUN mkdir -p data

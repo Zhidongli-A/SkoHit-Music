@@ -1,5 +1,7 @@
 import os
 import sys
+import zipfile
+import io
 
 # 强制 stdout 无缓冲输出，确保 Docker 日志实时显示
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
@@ -8,6 +10,7 @@ import requests
 import functools
 import time
 import subprocess
+import shutil
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response
 from threading import Lock, Thread
@@ -129,15 +132,48 @@ def get_default_branch():
 
 
 def pull_latest_code():
-    """拉取最新代码"""
+    """拉取最新代码（使用 GitHub 源码包，无需 Git 认证）"""
     try:
         branch = get_default_branch()
-        result = subprocess.run(
-            ['git', 'pull', 'origin', branch],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            return True
+        # 下载源码 zip 包
+        zip_url = f"https://github.com/Zhidongli-A/SkoHit-Music/archive/refs/heads/{branch}.zip"
+        print(f"[SkoHit][GitUpdate] Downloading from {zip_url}...")
+        
+        resp = requests.get(zip_url, timeout=30)
+        if resp.status_code != 200:
+            print(f"[SkoHit][GitUpdate] Download failed: {resp.status_code}")
+            return False
+        
+        # 解压到临时目录
+        print("[SkoHit][GitUpdate] Extracting...")
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+            # 获取根目录名（如 SkoHit-Music-master）
+            root_dir = zf.namelist()[0].split('/')[0]
+            zf.extractall('/tmp')
+        
+        # 复制文件到当前目录（排除 data 目录和 .git 目录）
+        src_dir = f'/tmp/{root_dir}'
+        print(f"[SkoHit][GitUpdate] Updating files from {src_dir}...")
+        
+        for item in os.listdir(src_dir):
+            if item in ['data', '.git']:
+                continue
+            src = os.path.join(src_dir, item)
+            dst = os.path.join('/app', item)
+            
+            if os.path.isdir(src):
+                if os.path.exists(dst):
+                    shutil.rmtree(dst)
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+        
+        # 清理临时文件
+        shutil.rmtree(src_dir)
+        
+        print("[SkoHit][GitUpdate] Files updated")
+        return True
+        
     except Exception as e:
         print(f"[SkoHit][GitUpdate] Pull error: {e}")
     return False

@@ -81,6 +81,9 @@ def get_remote_commit_hash():
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.split()[0]
+        else:
+            stderr = result.stderr.strip() if result.stderr else 'no output'
+            print(f"[SkoHit][GitUpdate] ls-remote failed: {stderr}")
     except Exception as e:
         print(f"[SkoHit][GitUpdate] Error: {e}")
     return None

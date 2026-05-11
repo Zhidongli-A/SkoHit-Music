@@ -28,6 +28,11 @@ COPY . .
 # 设置 .git 目录权限（确保可写，以便 git pull 可以更新）
 RUN chmod -R 755 .git 2>/dev/null || true
 
+# 配置 Git 全局设置（容器内需要）
+RUN git config --global user.email "docker@skohit.local" && \
+    git config --global user.name "SkoHit Docker" && \
+    git config --global pull.rebase false
+
 # 创建数据目录
 RUN mkdir -p data
 

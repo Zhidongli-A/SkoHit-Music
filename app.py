@@ -81,8 +81,10 @@ def get_remote_commit_hash():
         )
         if result.returncode == 0:
             return result.stdout.split()[0]
+        else:
+            print(f"[SkoHit][GitUpdate] Git error: {result.stderr.strip()}")
     except Exception as e:
-        print(f"[SkoHit][AutoUpdate] Failed to get remote version: {e}")
+        print(f"[SkoHit][GitUpdate] Failed to get remote version: {e}")
     return None
 
 def get_local_commit_hash():

@@ -73,17 +73,16 @@ def is_running_in_container():
 # ==================== Git 更新模式 (本地部署) ====================
 
 def get_remote_commit_hash():
-    """获取远程仓库最新 commit hash"""
+    """获取远程仓库最新 commit hash（使用 GitHub API，无需认证）"""
     try:
-        result = subprocess.run(
-            ['git', 'ls-remote', 'origin', 'HEAD'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.split()[0]
+        # 使用 GitHub API 获取最新 commit（公开仓库无需认证）
+        api_url = "https://api.github.com/repos/Zhidongli-A/SkoHit-Music/commits/master"
+        headers = {'Accept': 'application/vnd.github.v3+json'}
+        resp = requests.get(api_url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            return resp.json()['sha']
         else:
-            stderr = result.stderr.strip() if result.stderr else 'no output'
-            print(f"[SkoHit][GitUpdate] ls-remote failed: {stderr}")
+            print(f"[SkoHit][GitUpdate] API error: {resp.status_code}")
     except Exception as e:
         print(f"[SkoHit][GitUpdate] Error: {e}")
     return None

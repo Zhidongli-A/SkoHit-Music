@@ -75,14 +75,25 @@ def is_running_in_container():
 def get_remote_commit_hash():
     """获取远程仓库最新 commit hash"""
     try:
+        # 先检查 origin 的 URL
+        result = subprocess.run(
+            ['git', 'remote', 'get-url', 'origin'],
+            capture_output=True, text=True, timeout=5
+        )
+        remote_url = result.stdout.strip() if result.returncode == 0 else 'unknown'
+        print(f"[SkoHit][GitUpdate] Remote URL: {remote_url}")
+        
+        # 获取远程 HEAD
         result = subprocess.run(
             ['git', 'ls-remote', 'origin', 'HEAD'],
             capture_output=True, text=True, timeout=10
         )
-        if result.returncode == 0:
-            return result.stdout.split()[0]
+        if result.returncode == 0 and result.stdout.strip():
+            commit_hash = result.stdout.split()[0]
+            print(f"[SkoHit][GitUpdate] Remote HEAD: {commit_hash[:8]}")
+            return commit_hash
         else:
-            print(f"[SkoHit][GitUpdate] Git error: {result.stderr.strip()}")
+            print(f"[SkoHit][GitUpdate] ls-remote failed: {result.stderr.strip() or 'empty output'}")
     except Exception as e:
         print(f"[SkoHit][GitUpdate] Failed to get remote version: {e}")
     return None

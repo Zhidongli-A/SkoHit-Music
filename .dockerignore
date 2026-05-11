@@ -1,5 +1,5 @@
-# Git - 保留 .git 目录以便自动更新
-# 注意：不要排除 .git，否则容器内无法 git pull
+# Git
+.git
 .gitignore
 
 # Python
@@ -32,3 +32,6 @@ LICENSE
 
 # Data (will be mounted as volume)
 data/*.json
+
+# Version file (auto-generated)
+.version

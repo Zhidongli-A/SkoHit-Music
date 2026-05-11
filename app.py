@@ -58,14 +58,13 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-last_commit_hash = None
+VERSION_FILE = '/app/.version'
+current_version = None
 
 def is_running_in_container():
     """检测是否在容器环境中运行"""
-    # 方法1: 检查 /.dockerenv 文件
     if os.path.exists('/.dockerenv'):
         return True
-    # 方法2: 检查 cgroup
     try:
         with open('/proc/self/cgroup', 'r') as f:
             return 'docker' in f.read() or 'containerd' in f.read()
@@ -73,90 +72,59 @@ def is_running_in_container():
         pass
     return False
 
-# ==================== Git 更新模式 (本地部署) ====================
-
-def get_remote_commit_hash():
-    """获取远程仓库最新 commit hash（使用 GitHub API，无需认证）"""
+def read_local_version():
+    """读取本地版本（从文件）"""
     try:
-        # 使用 GitHub API 获取最新 commit（公开仓库无需认证）
+        if os.path.exists(VERSION_FILE):
+            with open(VERSION_FILE, 'r') as f:
+                return f.read().strip()
+    except:
+        pass
+    return None
+
+def write_local_version(version):
+    """写入本地版本到文件"""
+    try:
+        with open(VERSION_FILE, 'w') as f:
+            f.write(version)
+    except Exception as e:
+        print(f"[SkoHit][Update] Failed to write version: {e}")
+
+def get_remote_version():
+    """获取远程最新版本（GitHub API）"""
+    try:
         api_url = "https://api.github.com/repos/Zhidongli-A/SkoHit-Music/commits/master"
         headers = {'Accept': 'application/vnd.github.v3+json'}
         resp = requests.get(api_url, headers=headers, timeout=10)
         if resp.status_code == 200:
             return resp.json()['sha']
         else:
-            print(f"[SkoHit][GitUpdate] API error: {resp.status_code}")
+            print(f"[SkoHit][Update] API error: {resp.status_code}")
     except Exception as e:
-        print(f"[SkoHit][GitUpdate] Error: {e}")
+        print(f"[SkoHit][Update] Error: {e}")
     return None
 
-def get_local_commit_hash():
-    """获取本地当前 commit hash"""
+def download_and_update():
+    """下载并更新代码（GitHub 源码包）"""
     try:
-        result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception as e:
-        print(f"[SkoHit][GitUpdate] Error: {e}")
-    return None
-
-def get_default_branch():
-    """获取远程默认分支名称"""
-    try:
-        result = subprocess.run(
-            ['git', 'symbolic-ref', 'refs/remotes/origin/HEAD'],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            # 输出格式: refs/remotes/origin/main
-            return result.stdout.strip().split('/')[-1]
-    except Exception:
-        pass
-
-    # 回退到常用分支名
-    for branch in ['main', 'master']:
-        try:
-            result = subprocess.run(
-                ['git', 'ls-remote', '--heads', 'origin', branch],
-                capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return branch
-        except Exception:
-            continue
-
-    return 'main'  # 默认回退到 main
-
-
-def pull_latest_code():
-    """拉取最新代码（使用 GitHub 源码包，无需 Git 认证）"""
-    try:
-        branch = get_default_branch()
-        # 下载源码 zip 包
-        zip_url = f"https://github.com/Zhidongli-A/SkoHit-Music/archive/refs/heads/{branch}.zip"
-        print(f"[SkoHit][GitUpdate] Downloading from {zip_url}...")
+        zip_url = "https://github.com/Zhidongli-A/SkoHit-Music/archive/refs/heads/master.zip"
+        print(f"[SkoHit][Update] Downloading...")
         
         resp = requests.get(zip_url, timeout=30)
         if resp.status_code != 200:
-            print(f"[SkoHit][GitUpdate] Download failed: {resp.status_code}")
+            print(f"[SkoHit][Update] Download failed: {resp.status_code}")
             return False
         
-        # 解压到临时目录
-        print("[SkoHit][GitUpdate] Extracting...")
+        print("[SkoHit][Update] Extracting...")
         with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-            # 获取根目录名（如 SkoHit-Music-master）
             root_dir = zf.namelist()[0].split('/')[0]
             zf.extractall('/tmp')
         
-        # 复制文件到当前目录（排除 data 目录和 .git 目录）
         src_dir = f'/tmp/{root_dir}'
-        print(f"[SkoHit][GitUpdate] Updating files from {src_dir}...")
+        print(f"[SkoHit][Update] Updating...")
         
         for item in os.listdir(src_dir):
-            if item in ['data', '.git']:
+            if item == 'data':
                 continue
             src = os.path.join(src_dir, item)
             dst = os.path.join('/app', item)
@@ -168,108 +136,73 @@ def pull_latest_code():
             else:
                 shutil.copy2(src, dst)
         
-        # 清理临时文件
         shutil.rmtree(src_dir)
-        
-        print("[SkoHit][GitUpdate] Files updated")
+        print("[SkoHit][Update] Done")
         return True
         
     except Exception as e:
-        print(f"[SkoHit][GitUpdate] Pull error: {e}")
+        print(f"[SkoHit][Update] Error: {e}")
     return False
 
 def restart_service():
-    """重启服务 - 启动新进程并退出当前进程"""
-    print("[SkoHit][GitUpdate] Restarting...")
-
+    """重启服务"""
+    print("[SkoHit][Update] Restarting...")
     args = sys.argv.copy()
-
     if sys.platform == 'win32':
-        subprocess.Popen([sys.executable] + args,
-                         creationflags=subprocess.CREATE_NEW_CONSOLE)
+        subprocess.Popen([sys.executable] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
     else:
-        subprocess.Popen([sys.executable] + args,
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL)
+        subprocess.Popen([sys.executable] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    os._exit(42 if is_running_in_container() else 0)
 
-    if is_running_in_container():
-        os._exit(42)
-    else:
-        os._exit(0)
-
-def git_update_worker():
-    """Git 模式更新工作线程"""
-    global last_commit_hash
-
-    last_commit_hash = get_local_commit_hash()
-    current_version = last_commit_hash[:8] if last_commit_hash else 'unknown'
-    print(f"[SkoHit][GitUpdate] Current: {current_version}, check interval: {UPDATE_CHECK_INTERVAL}s")
-
+def update_worker():
+    """更新工作线程"""
+    global current_version
+    
+    current_version = read_local_version()
+    print(f"[SkoHit][Update] Current: {current_version[:8] if current_version else 'unknown'}, interval: {UPDATE_CHECK_INTERVAL}s")
+    
     check_count = 0
     while True:
         time.sleep(UPDATE_CHECK_INTERVAL)
         check_count += 1
-
+        
         try:
-            print(f"[SkoHit][GitUpdate] Check #{check_count}")
-
-            remote_hash = get_remote_commit_hash()
-            if not remote_hash:
-                print(f"[SkoHit][GitUpdate] Skip: cannot get remote version")
+            print(f"[SkoHit][Update] Check #{check_count}")
+            
+            remote_version = get_remote_version()
+            if not remote_version:
                 continue
-
-            local_short = last_commit_hash[:8] if last_commit_hash else 'none'
-            remote_short = remote_hash[:8] if remote_hash else 'none'
-            print(f"[SkoHit][GitUpdate] Local: {local_short}, Remote: {remote_short}")
-
-            if remote_hash != last_commit_hash:
-                print(f"[SkoHit][GitUpdate] Update detected, pulling...")
-
-                if pull_latest_code():
-                    last_commit_hash = get_local_commit_hash()
-                    print("[SkoHit][GitUpdate] Updated, restarting...")
+            
+            local_short = current_version[:8] if current_version else 'none'
+            remote_short = remote_version[:8]
+            print(f"[SkoHit][Update] Local: {local_short}, Remote: {remote_short}")
+            
+            if remote_version != current_version:
+                print("[SkoHit][Update] New version found")
+                
+                if download_and_update():
+                    current_version = remote_version
+                    write_local_version(current_version)
+                    print("[SkoHit][Update] Updated, restarting...")
                     time.sleep(3)
                     restart_service()
-                else:
-                    print("[SkoHit][GitUpdate] Pull failed, will retry next check")
             else:
-                print("[SkoHit][GitUpdate] No update")
+                print("[SkoHit][Update] No update")
+                
         except Exception as e:
-            print(f"[SkoHit][GitUpdate] Error: {e}")
+            print(f"[SkoHit][Update] Error: {e}")
 
-
-
-# ==================== 统一入口 ====================
-
-def check_git_requirements():
-    """检查 Git 环境要求"""
-    print("[SkoHit] Checking Git...")
-
+def check_update_available():
+    """检查更新功能是否可用"""
     try:
-        result = subprocess.run(['git', '--version'], capture_output=True, text=True)
-        if result.returncode != 0:
-            print("[SkoHit] Git not installed")
-            return False
-        print(f"[SkoHit] Git: {result.stdout.strip()}")
-    except Exception:
-        print("[SkoHit] Git not installed")
-        return False
-
-    if not os.path.exists('.git'):
-        print("[SkoHit] Not a Git repository")
-        return False
-
-    try:
-        result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
-        if 'origin' not in result.stdout:
-            print("[SkoHit] No remote 'origin'")
-            return False
-    except Exception:
-        print("[SkoHit] Git remote check failed")
-        return False
-
-    print("[SkoHit] Git OK")
-    return True
+        resp = requests.get("https://api.github.com/repos/Zhidongli-A/SkoHit-Music/commits/master", timeout=5)
+        if resp.status_code == 200:
+            print("[SkoHit] Update check OK")
+            return True
+    except:
+        pass
+    print("[SkoHit] Update check unavailable")
+    return False
 
 def start_auto_update():
     """启动自动更新线程"""
@@ -277,8 +210,8 @@ def start_auto_update():
         print("[SkoHit] Auto-update disabled")
         return
 
-    print("[SkoHit] Git auto-update enabled")
-    update_thread = Thread(target=git_update_worker, daemon=True)
+    print("[SkoHit] Auto-update enabled")
+    update_thread = Thread(target=update_worker, daemon=True)
     update_thread.start()
 
 # --- Helpers ---
@@ -560,10 +493,7 @@ if __name__ == '__main__':
 
     print(f"[SkoHit] SkoHit Music v{VERSION}")
 
-    if not check_git_requirements():
-        print("[SkoHit] Git check failed, exiting")
-        sys.exit(1)
-
+    check_update_available()
     start_auto_update()
 
     print(f"Server running on http://0.0.0.0:{args.port}")

@@ -32,7 +32,12 @@ RUN chmod -R 755 .git 2>/dev/null || true
 RUN git config --global user.email "docker@skohit.local" && \
     git config --global user.name "SkoHit Docker" && \
     git config --global pull.rebase false && \
+    git config --global credential.helper store && \
     git remote set-url origin https://github.com/Zhidongli-A/SkoHit-Music.git
+
+# 配置 Git 凭证（空凭证用于匿名访问公开仓库）
+RUN echo "https://:" >> /root/.git-credentials && \
+    chmod 600 /root/.git-credentials
 
 # 创建数据目录
 RUN mkdir -p data

@@ -4,7 +4,6 @@ import sys
 # 强制 stdout 无缓冲输出，确保 Docker 日志实时显示
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
-import hashlib
 import requests
 import functools
 import time
@@ -213,31 +212,26 @@ def git_update_worker():
 
 def check_git_requirements():
     """检查 Git 环境要求"""
-    is_container = is_running_in_container()
-    mode_str = "container" if is_container else "local"
-    print(f"[SkoHit] Running in {mode_str} mode, checking Git environment...")
+    print("[SkoHit] Checking Git environment...")
 
     try:
         result = subprocess.run(['git', '--version'], capture_output=True, text=True)
         if result.returncode != 0:
-            print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
+            print("[SkoHit][FATAL] Git is not installed!")
             return False
-        print(f"[SkoHit] Git version: {result.stdout.strip()}")
     except Exception:
-        print("[SkoHit][FATAL] Git is not installed! Please install Git first.")
+        print("[SkoHit][FATAL] Git is not installed!")
         return False
 
     if not os.path.exists('.git'):
-        print("[SkoHit][FATAL] Not a Git repository! Please run in a Git repo.")
+        print("[SkoHit][FATAL] Not a Git repository!")
         return False
-    print("[SkoHit] Git repository found")
 
     try:
         result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True)
         if 'origin' not in result.stdout:
-            print("[SkoHit][FATAL] No remote 'origin' configured! Please set up Git remote.")
+            print("[SkoHit][FATAL] No remote 'origin' configured!")
             return False
-        print("[SkoHit] Git remote 'origin' configured")
     except Exception:
         print("[SkoHit][FATAL] Git remote check failed!")
         return False
@@ -251,10 +245,7 @@ def start_auto_update():
         print("[SkoHit][AutoUpdate] Auto-update is disabled")
         return
 
-    # 统一使用 Git 更新模式（本地和容器都使用）
-    is_container = is_running_in_container()
-    mode_str = "Container" if is_container else "Local"
-    print(f"[SkoHit][AutoUpdate] Mode: Git Source Update ({mode_str})")
+    print("[SkoHit][AutoUpdate] Git auto-update enabled")
     update_thread = Thread(target=git_update_worker, daemon=True)
     update_thread.start()
     print("[SkoHit][AutoUpdate] Git auto-update monitoring started")
@@ -536,14 +527,8 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
     args = parser.parse_args()
 
-    # 检测运行环境
-    if is_running_in_container():
-        print("[SkoHit] Running in Docker container mode")
-        print(f"[SkoHit] Version: {VERSION}")
-    else:
-        print("[SkoHit] Running in native mode")
+    print(f"[SkoHit] SkoHit Music Server v{VERSION}")
 
-    # 所有模式都检查 Git 环境（容器也需要 Git 来更新代码）
     if not check_git_requirements():
         print("[SkoHit][FATAL] Git environment check failed, exiting")
         sys.exit(1)

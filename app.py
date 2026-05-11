@@ -177,7 +177,12 @@ def update_worker():
             remote_short = remote_version[:8]
             print(f"[SkoHit][Update] Local: {local_short}, Remote: {remote_short}")
             
-            if remote_version != current_version:
+            if current_version is None:
+                # 第一次运行，记录当前版本但不更新
+                current_version = remote_version
+                write_local_version(current_version)
+                print(f"[SkoHit][Update] Initialized version: {current_version[:8]}")
+            elif remote_version != current_version:
                 print("[SkoHit][Update] New version found")
                 
                 if download_and_update():

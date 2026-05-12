@@ -18,23 +18,60 @@
         }
         
         .login-container {
-            background: #ffffff;
-            padding: 56px 40px; /* More padding for the Apple aesthetic */
-            border-radius: 24px; /* More rounded */
-            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.06); /* Softer shadow */
+            padding: 56px 40px;
+            border-radius: 24px;
             width: 100%;
-            max-width: 380px; /* Slightly wider */
+            max-width: 380px;
             text-align: center;
             transition: all 0.3s ease;
-            border: 1px solid rgba(0, 0, 0, 0.08); /* Subtle border */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 立体效果 - 多层阴影 */
+        .login-container {
+            background: linear-gradient(145deg, #ffffff 0%, #f5f5f5 100%);
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.1),
+                0 8px 25px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        /* 悬停时增强立体效果 */
+        .login-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.12),
+                0 12px 35px rgba(0, 0, 0, 0.1),
+                0 4px 12px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
         }
 
         h1 {
             font-weight: 700; /* Bolder weight */
             margin-bottom: 36px; /* More space */
             color: #1d1d1f;
-            font-size: 28px;
+            font-size: 32px;
             letter-spacing: -0.5px; /* Tighter letter spacing */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .logo-img {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            object-fit: cover;
+        }
+
+        h1 .gradient-text {
+            background: linear-gradient(90deg, #ff1493, #ff69b4, #da70d6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .form-group {
@@ -71,20 +108,23 @@
         button {
             width: 100%;
             padding: 16px;
-            background-color: #000000; /* Black for primary button */
-            color: white;
+            background: rgba(230, 230, 230, 0.85); /* 亚克力效果 - 浅灰半透明 */
+            color: #1d1d1f;
             border: none;
-            border-radius: 14px; /* More rounded */
+            border-radius: 12px;
             font-size: 17px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 8px; /* Less space above button */
+            margin-top: 8px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         button:hover {
-            background-color: #2c2c2e; /* Slightly lighter black on hover */
-            transform: scale(1.01); /* Subtle scaling */
+            background: rgba(210, 210, 210, 0.9);
+            transform: scale(1.01);
         }
 
         .toggle-text {
@@ -136,7 +176,7 @@
 <body>
 
     <div class="login-container" id="login-card">
-        <h1>SkoHit 登录</h1>
+        <h1><img src="/static/logo.png" alt="logo" class="logo-img" onerror="this.style.display='none'">Web <span class="gradient-text">Login</span></h1>
         <div class="error-msg" id="login-error"></div>
         <div class="form-group">
             <label>用户名</label>
@@ -153,7 +193,7 @@
     </div>
 
     <div class="login-container hidden" id="register-card">
-        <h1>SkoHit 注册</h1>
+        <h1><img src="/static/logo.png" alt="logo" class="logo-img" onerror="this.style.display='none'">Web <span class="gradient-text">Register</span></h1>
         <div class="error-msg" id="register-error"></div>
         <div class="form-group">
             <label>用户名</label>
@@ -238,6 +278,7 @@
             el.innerText = msg;
             el.style.display = 'block';
         }
+
     </script>
 </body>
 </html>

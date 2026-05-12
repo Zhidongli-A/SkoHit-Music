@@ -35,46 +35,40 @@ Flask (Python)、JSON 文件存储、HTML5 + CSS3 + JavaScript、Meting API
 
 #### 部署步骤
 
-1. 克隆仓库
+**1. 创建配置文件**
 
-```bash
-git clone https://github.com/Zhidongli-A/SkoHit-Music.git
-cd SkoHit-Music
+新建 `docker-compose.yml` 文件，粘贴以下内容：
+
+```yaml
+version: '3.8'
+
+services:
+  skohit-music:
+    image: skohit/skohit-music:latest
+    container_name: skohit-music
+    ports:
+      - "7000:7000"
+    environment:
+      # Meting API 地址（必填）- 修改为你的 API 地址
+      - METING_API_URL=https://your-meting-api.com/api
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
 ```
 
-2. 配置环境变量
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件，设置你的 Meting API 地址：
-
-```
-METING_API_URL=http://your-meting-api-server:3000/api
-```
-
-3. 启动容器
+**2. 启动容器**
 
 ```bash
 docker-compose up -d
 ```
 
-4. 打开浏览器访问 `http://localhost:7000`
+**3. 访问应用**
 
-#### Docker 常用命令
+打开浏览器访问 `http://localhost:7000`
+
+#### 更新版本
 
 ```bash
-# 查看日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-
-# 重启服务
-docker-compose restart
-
-# 更新到最新版本
 docker-compose pull && docker-compose up -d
 ```
 
@@ -89,28 +83,32 @@ docker-compose pull && docker-compose up -d
 
 #### 安装步骤
 
-1. 克隆仓库
+**1. 克隆仓库**
 
 ```bash
 git clone https://github.com/Zhidongli-A/SkoHit-Music.git
 cd SkoHit-Music
 ```
 
-2. 安装依赖
+**2. 安装依赖**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. 配置环境变量
+**3. 配置环境变量**
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，设置你的 Meting API 地址。
+编辑 `.env` 文件，设置你的 Meting API 地址：
 
-4. 运行应用
+```
+METING_API_URL=http://your-meting-api-server:3000/api
+```
+
+**4. 运行应用**
 
 ```bash
 python app.py
@@ -126,7 +124,9 @@ start.bat
 ./start.sh
 ```
 
-5. 打开浏览器访问 `http://localhost:7000`
+**5. 访问应用**
+
+打开浏览器访问 `http://localhost:7000`
 
 ## API 文档
 
@@ -186,6 +186,13 @@ SkoHit-Music/
     └── login.html
 ```
 
+## 获取 Meting API
+
+SkoHit Music 依赖 Meting API 获取音乐数据，您可以：
+
+- 使用公共 API（自行寻找）
+- 自行部署：[Meting API 项目地址](https://github.com/metowolf/Meting)
+
 ## 许可证
 
 本项目采用 [MIT License](LICENSE) 开源许可证。
@@ -195,4 +202,3 @@ Copyright 2026 枝动力
 ## 致谢
 
 - [Meting](https://github.com/metowolf/Meting) - 免费的音乐 API 框架
-

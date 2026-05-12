@@ -155,7 +155,7 @@ def restart_service():
     os._exit(42 if is_running_in_container() else 0)
 
 def update_worker():
-    """更新工作线程"""
+    """更新工作线程 - 简化逻辑：只要版本不同就更新"""
     global current_version
     
     current_version = read_local_version()
@@ -177,13 +177,9 @@ def update_worker():
             remote_short = remote_version[:8]
             print(f"[SkoHit][Update] Local: {local_short}, Remote: {remote_short}")
             
-            if current_version is None:
-                # 第一次运行，记录当前版本但不更新
-                current_version = remote_version
-                write_local_version(current_version)
-                print(f"[SkoHit][Update] Initialized version: {current_version[:8]}")
-            elif remote_version != current_version:
-                print("[SkoHit][Update] New version found")
+            # 简化逻辑：只要版本不同就更新（包括第一次运行）
+            if remote_version != current_version:
+                print("[SkoHit][Update] Version mismatch, updating...")
                 
                 if download_and_update():
                     current_version = remote_version
@@ -192,7 +188,7 @@ def update_worker():
                     time.sleep(3)
                     restart_service()
             else:
-                print("[SkoHit][Update] No update")
+                print("[SkoHit][Update] Already latest")
                 
         except Exception as e:
             print(f"[SkoHit][Update] Error: {e}")

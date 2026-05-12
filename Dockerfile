@@ -23,8 +23,11 @@ COPY . .
 # 创建数据目录
 RUN mkdir -p data
 
+# 赋予启动脚本执行权限
+RUN chmod +x start.sh
+
 # 暴露端口
 EXPOSE 7000
 
-# 启动命令
-CMD ["python", "app.py"]
+# 启动命令 - 使用 shell 脚本启动
+CMD ["./start.sh"]

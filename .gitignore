@@ -5,6 +5,9 @@ data/*.json
 # Environment variables
 .env
 
+# Auto-generated version file
+.version
+
 # Python cache
 __pycache__/
 *.pyc

@@ -7,11 +7,9 @@ services:
     ports:
       - "7000:7000"
     environment:
-      - METING_API_URL=${METING_API_URL}
-      - APP_VERSION=${VERSION:-latest}
+      # Meting API 地址（必填）- 修改为你的 API 地址
+      - METING_API_URL=${METING_API_URL:-https://meting-api.example.com/api}
     volumes:
       # 持久化数据目录
       - ./data:/app/data
-      # 环境变量文件
-      - ./.env:/app/.env
     restart: unless-stopped

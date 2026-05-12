@@ -58,7 +58,11 @@ def cleanup_inactive_users():
             del active_users[user_id]
 
 # --- Auto Update ---
-VERSION_FILE = '/app/.version'
+# 根据平台选择版本文件路径
+if sys.platform == 'win32':
+    VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.version')
+else:
+    VERSION_FILE = '/app/.version'
 current_version = None
 
 def is_running_in_container():
@@ -107,6 +111,11 @@ def get_remote_version():
 def download_and_update():
     """下载并更新代码（GitHub 源码包）"""
     try:
+        # Windows 上禁用自动更新（权限和路径问题）
+        if sys.platform == 'win32':
+            print("[SkoHit][Update] Auto-update disabled on Windows")
+            return False
+            
         zip_url = "https://github.com/Zhidongli-A/SkoHit-Music/archive/refs/heads/master.zip"
         print(f"[SkoHit][Update] Downloading...")
         
@@ -149,7 +158,8 @@ def restart_service():
     print("[SkoHit][Update] Restarting...")
     args = sys.argv.copy()
     if sys.platform == 'win32':
-        subprocess.Popen([sys.executable] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+        # Windows 上使用当前控制台，不创建新窗口
+        subprocess.Popen([sys.executable] + args)
     else:
         subprocess.Popen([sys.executable] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     os._exit(42 if is_running_in_container() else 0)

@@ -111,11 +111,6 @@ def get_remote_version():
 def download_and_update():
     """下载并更新代码（GitHub 源码包）"""
     try:
-        # Windows 上禁用自动更新（权限和路径问题）
-        if sys.platform == 'win32':
-            print("[SkoHit][Update] Auto-update disabled on Windows")
-            return False
-            
         zip_url = "https://github.com/Zhidongli-A/SkoHit-Music/archive/refs/heads/master.zip"
         print(f"[SkoHit][Update] Downloading...")
         
@@ -127,16 +122,26 @@ def download_and_update():
         print("[SkoHit][Update] Extracting...")
         with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
             root_dir = zf.namelist()[0].split('/')[0]
-            zf.extractall('/tmp')
+            # 根据平台选择临时目录
+            if sys.platform == 'win32':
+                temp_dir = os.path.join(os.environ.get('TEMP', '.'), 'skohit_update')
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                zf.extractall(temp_dir)
+                src_dir = os.path.join(temp_dir, root_dir)
+                app_dir = os.path.dirname(os.path.abspath(__file__))
+            else:
+                zf.extractall('/tmp')
+                src_dir = f'/tmp/{root_dir}'
+                app_dir = '/app'
         
-        src_dir = f'/tmp/{root_dir}'
         print(f"[SkoHit][Update] Updating...")
         
         for item in os.listdir(src_dir):
             if item == 'data':
                 continue
             src = os.path.join(src_dir, item)
-            dst = os.path.join('/app', item)
+            dst = os.path.join(app_dir, item)
             
             if os.path.isdir(src):
                 if os.path.exists(dst):
@@ -145,7 +150,12 @@ def download_and_update():
             else:
                 shutil.copy2(src, dst)
         
-        shutil.rmtree(src_dir)
+        # 清理临时目录
+        if sys.platform == 'win32' and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        elif os.path.exists('/tmp/' + root_dir):
+            shutil.rmtree('/tmp/' + root_dir)
+            
         print("[SkoHit][Update] Done")
         return True
         

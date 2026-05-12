@@ -806,8 +806,16 @@ function updateProgress() {
     if (isNaN(duration)) return;
     
     const percent = (currentTime / duration) * 100;
-    document.getElementById('mini-progress').value = percent;
-    document.getElementById('fs-progress-bar').value = percent;
+    const miniProgress = document.getElementById('mini-progress');
+    const fsProgress = document.getElementById('fs-progress-bar');
+    
+    // 更新进度条值
+    miniProgress.value = percent;
+    fsProgress.value = percent;
+    
+    // 动态设置 CSS 变量实现双色进度条
+    miniProgress.style.setProperty('--progress-percent', percent + '%');
+    fsProgress.style.setProperty('--progress-percent', percent + '%');
     
     const currTimeStr = formatTime(currentTime);
     document.getElementById('mini-current-time').innerText = currTimeStr;

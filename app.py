@@ -521,8 +521,6 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=7000, help='Port to run on (default: 7000)')
     args = parser.parse_args()
 
-    print(f"[SkoHit] SkoHit Music v{VERSION}")
-
     check_update_available()
     start_auto_update()
 

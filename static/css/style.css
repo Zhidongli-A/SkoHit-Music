@@ -530,8 +530,8 @@ h2 {
     border-radius: 2px;
     -webkit-appearance: none;
     background: linear-gradient(to right, 
-        var(--primary-color) 0%, 
-        var(--primary-color) var(--progress-percent, 0%), 
+        #ffffff 0%, 
+        #ffffff var(--progress-percent, 0%), 
         var(--border-color) var(--progress-percent, 0%), 
         var(--border-color) 100%
     );
@@ -545,8 +545,8 @@ h2 {
 .progress-container input[type=range]::-webkit-slider-runnable-track {
     height: 4px;
     background: linear-gradient(to right, 
-        var(--primary-color) 0%, 
-        var(--primary-color) var(--progress-percent, 0%), 
+        #ffffff 0%, 
+        #ffffff var(--progress-percent, 0%), 
         var(--border-color) var(--progress-percent, 0%), 
         var(--border-color) 100%
     );
@@ -564,7 +564,7 @@ h2 {
 
 .progress-container input[type=range]::-moz-range-progress {
     height: 4px;
-    background: var(--primary-color);
+    background: #ffffff;
     border-radius: 2px;
     transition: height 0.2s ease;
 }
@@ -940,28 +940,28 @@ h2 {
     transition: all 0.1s ease;
 }
 
-/* 全屏播放按钮 - 默认无背景，悬停时显示 */
+/* 全屏播放按钮 - 纯图标，无背景 */
 .fs-controls .fs-play-btn {
     font-size: 48px;
     width: 72px;
     height: 72px;
-    background: none;
+    background: none !important;
     border-radius: 50%;
     color: white !important;
-    box-shadow: none;
-    backdrop-filter: none;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
 }
 
 .fs-controls .fs-play-btn:hover {
-    background: rgba(255,255,255,0.15);
+    background: none !important;
     transform: scale(1.2);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    backdrop-filter: blur(10px);
+    box-shadow: none !important;
+    backdrop-filter: none !important;
 }
 
 .fs-controls .fs-play-btn:active {
     transform: scale(1.05);
-    background: rgba(255,255,255,0.25);
+    background: none !important;
 }
 
 /* Revert icon margins */

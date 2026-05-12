@@ -25,7 +25,7 @@ VERSION = os.getenv('APP_VERSION', 'dev')
 
 # 强制启用自动更新
 AUTO_UPDATE_ENABLED = True
-UPDATE_CHECK_INTERVAL = 60  # 每60秒检查一次
+UPDATE_CHECK_INTERVAL = 300  # 每5分钟检查一次
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -164,15 +164,25 @@ def download_and_update():
     return False
 
 def restart_service():
-    """重启服务"""
+    """重启服务 - 根据平台选择不同的重启策略"""
     print("[SkoHit][Update] Restarting...")
     args = sys.argv.copy()
-    if sys.platform == 'win32':
-        # Windows 上使用当前控制台，不创建新窗口
-        subprocess.Popen([sys.executable] + args)
+    
+    if is_running_in_container():
+        # 容器端：直接异常退出，让容器重启
+        print("[SkoHit][Update] Container mode: exit with code 42")
+        os._exit(42)
     else:
-        subprocess.Popen([sys.executable] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    os._exit(42 if is_running_in_container() else 0)
+        # 桌面端（Windows/Linux/Mac）：先启动新进程，再退出旧进程
+        print("[SkoHit][Update] Desktop mode: start new process then exit")
+        if sys.platform == 'win32':
+            # Windows：使用当前控制台，不创建新窗口
+            subprocess.Popen([sys.executable] + args, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+        else:
+            # Linux/Mac：后台启动新进程
+            subprocess.Popen([sys.executable] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        # 旧进程正常退出
+        os._exit(0)
 
 def update_worker():
     """更新工作线程 - 简化逻辑：只要版本不同就更新"""
@@ -199,12 +209,11 @@ def update_worker():
             
             # 简化逻辑：只要版本不同就更新（包括第一次运行）
             if remote_version != current_version:
-                print("[SkoHit][Update] Version mismatch, updating...")
+                print("[SkoHit][Update] Updata is starting")
                 
                 if download_and_update():
                     current_version = remote_version
                     write_local_version(current_version)
-                    print("[SkoHit][Update] Updated, restarting...")
                     time.sleep(3)
                     restart_service()
             else:

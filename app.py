@@ -400,7 +400,10 @@ def meting_proxy():
         if params.get('type') in ['url', 'pic']:
             resp = requests.get(METING_API_URL, params=params, allow_redirects=False, timeout=10)
             if resp.status_code == 302:
-                return redirect(resp.headers['Location'])
+                # 获取真实的音频URL
+                real_url = resp.headers['Location']
+                # 返回JSON让前端处理，避免直接重定向被CDN拦截
+                return jsonify({'url': real_url, 'type': 'redirect'})
             elif resp.status_code == 200:
                 return resp.content, 200, {'Content-Type': resp.headers.get('Content-Type')}
         

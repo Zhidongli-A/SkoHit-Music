@@ -674,12 +674,22 @@ async function loadSong(song) {
     updatePlayerUI(song);
     
     try {
-        // If the URL in the object is already a full URL, we can try using it.
-        // However, standard Meting usage often implies hitting the API to get the playback URL if it's not direct.
-        // But the Meting response from 'playlist' usually contains a 'url' field that is a link to the API itself which redirects.
-        // E.g. "url": "https://api.../url?id=..."
+        let audioUrl = song.url;
         
-        audio.src = song.url; 
+        // 如果URL是代理地址，需要获取真实URL
+        if (audioUrl && audioUrl.includes('/api/meting')) {
+            try {
+                const urlResp = await fetch(audioUrl);
+                const urlData = await urlResp.json();
+                if (urlData.url) {
+                    audioUrl = urlData.url;
+                }
+            } catch (e) {
+                console.error('Failed to get real audio URL:', e);
+            }
+        }
+        
+        audio.src = audioUrl; 
         
         const playPromise = audio.play();
         if (playPromise !== undefined) {

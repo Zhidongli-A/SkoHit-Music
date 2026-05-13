@@ -156,7 +156,7 @@ async function loadToplist() {
                 <div class="list-item" data-song-id="${song.id}" onclick="playTopSong('${song.id}')">
                     <div id="top-img-${song.id}" class="img-skeleton skeleton"></div>
                     <div class="list-info">
-                        <div class="list-title">${song.title}</div>
+                        <div class="list-title" id="top-title-${song.id}">&nbsp;</div>
                         <div class="list-sub" id="top-sub-${song.id}"></div>
                     </div>
                     <div class="list-heart" style="color:${heartColor};" onclick="event.stopPropagation(); toggleFavoriteBySongId('${song.id}')"><i class="${heartClass} fa-heart"></i></div>
@@ -190,11 +190,13 @@ function enrichToplistNoLimit(items, signal) {
                 if (Array.isArray(arr) && arr.length > 0) {
                     const s = arr[0];
                     const imgEl = document.getElementById(`top-img-${item.id}`);
+                    const titleEl = document.getElementById(`top-title-${item.id}`);
                     const subEl = document.getElementById(`top-sub-${item.id}`);
                     if (imgEl && s.pic) {
                         imgEl.style.backgroundImage = `url(${s.pic})`;
                         imgEl.classList.remove('skeleton');
                     }
+                    if (titleEl && s.title) titleEl.textContent = s.title;
                     if (subEl && s.author) subEl.textContent = s.author;
                     // Update item with complete song info including URL for immediate playback
                     item.title = s.title || item.title;
@@ -1038,6 +1040,318 @@ function updateListHearts() {
         }
     });
 }
+// --- User Settings ---
+let currentSettingsTab = 'username';
+
+function openUserSettings() {
+    document.getElementById('settings-modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    clearSettingsErrors();
+    // 默认切换到用户名标签
+    switchSettingsTab('username');
+}
+
+function closeUserSettings() {
+    document.getElementById('settings-modal').classList.remove('active');
+    document.body.style.overflow = '';
+    clearSettingsForm();
+}
+
+function switchSettingsTab(tab) {
+    currentSettingsTab = tab;
+    
+    // 更新标签状态
+    document.querySelectorAll('.tab-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    
+    // 更新表单显示
+    document.querySelectorAll('.form-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.getElementById(`section-${tab}`).classList.add('active');
+    
+    clearSettingsErrors();
+}
+
+function clearSettingsForm() {
+    document.getElementById('new-username').value = '';
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    clearSettingsErrors();
+}
+
+function clearSettingsErrors() {
+    const errorIds = ['username-error', 'current-password-error', 'new-password-error'];
+    const inputIds = ['new-username', 'current-password', 'new-password'];
+    
+    errorIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = '';
+            el.classList.remove('show');
+        }
+    });
+    
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('error', 'success');
+        }
+    });
+}
+
+function showFieldError(fieldId, errorId, message) {
+    const input = document.getElementById(fieldId);
+    const error = document.getElementById(errorId);
+    if (input) input.classList.add('error');
+    if (error) {
+        error.textContent = message;
+        error.classList.add('show');
+    }
+}
+
+function showFieldSuccess(fieldId) {
+    const input = document.getElementById(fieldId);
+    if (input) input.classList.add('success');
+}
+
+function validateSettings() {
+    clearSettingsErrors();
+    let isValid = true;
+    
+    if (currentSettingsTab === 'username') {
+        // 验证用户名
+        const newUsername = document.getElementById('new-username').value.trim();
+        
+        if (!newUsername) {
+            showFieldError('new-username', 'username-error', '请输入新用户名');
+            isValid = false;
+        } else if (newUsername.length < 3) {
+            showFieldError('new-username', 'username-error', '用户名至少需要3个字符');
+            isValid = false;
+        } else if (newUsername.length > 20) {
+            showFieldError('new-username', 'username-error', '用户名不能超过20个字符');
+            isValid = false;
+        } else {
+            showFieldSuccess('new-username');
+        }
+    } else {
+        // 验证密码
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        
+        if (!currentPassword) {
+            showFieldError('current-password', 'current-password-error', '请输入当前密码');
+            isValid = false;
+        }
+        
+        if (!newPassword) {
+            showFieldError('new-password', 'new-password-error', '请输入新密码');
+            isValid = false;
+        } else if (newPassword.length < 6) {
+            showFieldError('new-password', 'new-password-error', '密码至少需要6个字符');
+            isValid = false;
+        } else if (currentPassword && newPassword === currentPassword) {
+            showFieldError('new-password', 'new-password-error', '新密码不能与当前密码相同');
+            isValid = false;
+        } else {
+            showFieldSuccess('new-password');
+        }
+    }
+    
+    return isValid;
+}
+
+async function saveUserSettings() {
+    if (!validateSettings()) return;
+    
+    const data = {};
+    
+    if (currentSettingsTab === 'username') {
+        const newUsername = document.getElementById('new-username').value.trim();
+        data.new_username = newUsername;
+    } else {
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        data.current_password = currentPassword;
+        data.new_password = newPassword;
+    }
+    
+    try {
+        const saveBtn = document.querySelector('.settings-footer .btn-primary');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = '保存中...';
+        saveBtn.disabled = true;
+        
+        const res = await fetch('/api/user/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await res.json();
+        
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+        
+        if (result.success) {
+            showToast('设置已保存');
+            
+            // 更新界面上的用户名
+            if (data.new_username) {
+                document.querySelector('.username').textContent = data.new_username;
+                document.getElementById('settings-username').textContent = data.new_username;
+                document.getElementById('current-username-display').value = data.new_username;
+            }
+            
+            // 清空表单
+            if (currentSettingsTab === 'username') {
+                document.getElementById('new-username').value = '';
+            } else {
+                document.getElementById('current-password').value = '';
+                document.getElementById('new-password').value = '';
+            }
+            
+            clearSettingsErrors();
+        } else {
+            // 显示服务器返回的错误
+            if (result.field) {
+                const fieldMap = {
+                    'new_username': ['new-username', 'username-error'],
+                    'current_password': ['current-password', 'current-password-error'],
+                    'new_password': ['new-password', 'new-password-error']
+                };
+                const [fieldId, errorId] = fieldMap[result.field] || ['', ''];
+                if (fieldId) {
+                    showFieldError(fieldId, errorId, result.message);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+    } catch (e) {
+        showToast('保存失败，请重试', 'error');
+        const saveBtn = document.querySelector('.settings-footer .btn-primary');
+        saveBtn.textContent = '保存更改';
+        saveBtn.disabled = false;
+    }
+}
+
+// --- Avatar Upload ---
+async function uploadAvatar(input) {
+    const file = input.files[0];
+    if (!file) {
+        console.log('No file selected');
+        return;
+    }
+
+    console.log('Uploading file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+        showToast('请选择图片文件', 'error');
+        return;
+    }
+
+    // 验证文件大小（最大 2MB）
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('图片大小不能超过 2MB', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+        showToast('上传中...');
+
+        const res = await fetch('/api/user/avatar', {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('Response status:', res.status);
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error('Server error:', text);
+            showToast('服务器错误: ' + res.status, 'error');
+            return;
+        }
+
+        const result = await res.json();
+        console.log('Response:', result);
+
+        if (result.success) {
+            showToast('头像已更新');
+            // 刷新头像显示
+            const timestamp = new Date().getTime();
+            const settingsImg = document.getElementById('settings-avatar-img');
+            const sidebarImg = document.getElementById('sidebar-avatar');
+            if (settingsImg) {
+                settingsImg.style.display = 'block';
+                settingsImg.src = `/api/user/avatar?t=${timestamp}`;
+            }
+            if (sidebarImg) sidebarImg.src = `/api/user/avatar?t=${timestamp}`;
+        } else {
+            showToast(result.message || '上传失败', 'error');
+        }
+    } catch (e) {
+        console.error('Upload error:', e);
+        showToast('上传失败: ' + e.message, 'error');
+    }
+
+    // 清空 input 以便可以再次选择同一文件
+    input.value = '';
+}
+
+// Toast notification
+function showToast(message, type = 'success') {
+    // 移除已有的 toast
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    
+    if (type === 'error') {
+        toast.style.backgroundColor = '#fa233b';
+    }
+    
+    document.body.appendChild(toast);
+    
+    // 触发动画
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+    
+    // 3秒后移除
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// 监听 Enter 键提交表单
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsInputs = ['new-username', 'current-password', 'new-password'];
+    settingsInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveUserSettings();
+                }
+            });
+        }
+    });
+});
+
 async function toggleFavorite() {
     // Use currentSong instead of currentPlaylist[currentIndex]
     if (!currentSong) return;

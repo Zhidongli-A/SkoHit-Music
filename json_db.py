@@ -5,8 +5,14 @@ import threading
 from typing import List, Dict, Optional, Any
 
 DATA_DIR = 'data'
+AVATARS_DIR = os.path.join(DATA_DIR, 'avatars')
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 FAVORITES_FILE = os.path.join(DATA_DIR, 'favorites.json')
+
+def _ensure_avatars_dir():
+    """确保头像目录存在"""
+    if not os.path.exists(AVATARS_DIR):
+        os.makedirs(AVATARS_DIR)
 
 _lock = threading.Lock()
 
@@ -38,6 +44,7 @@ def _save_json(filepath: str, data: List[Dict]):
 def init_db():
     """初始化数据库（确保文件存在）"""
     _ensure_data_dir()
+    _ensure_avatars_dir()
     if not os.path.exists(USERS_FILE):
         _save_json(USERS_FILE, [])
     if not os.path.exists(FAVORITES_FILE):
@@ -89,6 +96,57 @@ def verify_user(username: str, password: str) -> Optional[Dict]:
 def count_users() -> int:
     """获取用户总数"""
     return len(_get_all_users())
+
+def update_user(user_id: int, new_username: str = None, new_password: str = None) -> Dict:
+    """更新用户信息"""
+    users = _get_all_users()
+    user = None
+    user_index = -1
+    
+    for i, u in enumerate(users):
+        if u.get('id') == user_id:
+            user = u
+            user_index = i
+            break
+    
+    if user is None:
+        return {'success': False, 'message': '用户不存在'}
+    
+    # 检查新用户名是否已被其他用户使用
+    if new_username and new_username != user.get('username'):
+        for u in users:
+            if u.get('id') != user_id and u.get('username') == new_username:
+                return {'success': False, 'message': '用户名已被使用', 'field': 'new_username'}
+        user['username'] = new_username
+    
+    # 更新密码
+    if new_password:
+        user['password'] = hashlib.md5(new_password.encode()).hexdigest()
+    
+    users[user_index] = user
+    _save_json(USERS_FILE, users)
+    
+    return {'success': True, 'user': user}
+
+def get_user_avatar_path(user_id: int) -> str:
+    """获取用户头像路径"""
+    _ensure_avatars_dir()
+    avatar_path = os.path.join(AVATARS_DIR, f'{user_id}.png')
+    if os.path.exists(avatar_path):
+        return avatar_path
+    return None
+
+def save_user_avatar(user_id: int, image_data: bytes) -> bool:
+    """保存用户头像"""
+    try:
+        _ensure_avatars_dir()
+        avatar_path = os.path.join(AVATARS_DIR, f'{user_id}.png')
+        with open(avatar_path, 'wb') as f:
+            f.write(image_data)
+        return True
+    except Exception as e:
+        print(f"Error saving avatar: {e}")
+        return False
 
 # --- Favorites (简化版，仅存储 song_id) ---
 

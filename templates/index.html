@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkoHit Music</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <link rel="stylesheet" href="/static/css/style.css?v=11">
 </head>
 <body>
 
@@ -25,12 +25,13 @@
                     </li>
                 </ul>
             </nav>
-            <div class="user-profile">
+            <div class="user-profile" onclick="openUserSettings()">
                 <div class="avatar">
-                    <i class="fas fa-user"></i>
+                    <img id="sidebar-avatar" src="/api/user/avatar" alt="Avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-user" style="display:none;"></i>
                 </div>
                 <div class="username">{{ username }}</div>
-                <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+                <a href="/logout" class="logout-btn" onclick="event.stopPropagation()"><i class="fas fa-sign-out-alt"></i></a>
             </div>
         </div>
 
@@ -77,13 +78,85 @@
         </div>
     </div>
 
+    <!-- User Settings Modal -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-overlay" onclick="closeUserSettings()"></div>
+        <div class="settings-content">
+            <div class="settings-header">
+                <h3>用户设置</h3>
+                <button onclick="closeUserSettings()" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="settings-body">
+                <!-- Left Side: Avatar & User Info -->
+                <div class="settings-left">
+                    <div class="avatar-upload" onclick="document.getElementById('avatar-input').click()">
+                        <img id="settings-avatar-img" src="/api/user/avatar" alt="Avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'; this.nextElementSibling.nextElementSibling.style.display='flex';">
+                        <div class="avatar-fallback" style="display:none;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="avatar-overlay">
+                            <i class="fas fa-camera"></i>
+                            <span>更换头像</span>
+                        </div>
+                    </div>
+                    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+                    <div class="current-username" id="settings-username">{{ username }}</div>
+                    <div class="settings-tabs">
+                        <div class="tab-item active" onclick="switchSettingsTab('username')" id="tab-username">
+                            <i class="fas fa-user-edit"></i>
+                            <span>修改用户名</span>
+                        </div>
+                        <div class="tab-item" onclick="switchSettingsTab('password')" id="tab-password">
+                            <i class="fas fa-lock"></i>
+                            <span>修改密码</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Side: Form -->
+                <div class="settings-right">
+                    <!-- Username Form -->
+                    <div class="form-section active" id="section-username">
+                        <h4>修改用户名</h4>
+                        <div class="form-group">
+                            <label>当前用户名</label>
+                            <input type="text" id="current-username-display" value="{{ username }}" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>新用户名</label>
+                            <input type="text" id="new-username" placeholder="输入新用户名" maxlength="20">
+                            <span class="error-msg" id="username-error"></span>
+                        </div>
+                    </div>
+                    <!-- Password Form -->
+                    <div class="form-section" id="section-password">
+                        <h4>修改密码</h4>
+                        <div class="form-group">
+                            <label>当前密码</label>
+                            <input type="password" id="current-password" placeholder="输入当前密码">
+                            <span class="error-msg" id="current-password-error"></span>
+                        </div>
+                        <div class="form-group">
+                            <label>新密码</label>
+                            <input type="password" id="new-password" placeholder="输入新密码（至少6位）" minlength="6">
+                            <span class="error-msg" id="new-password-error"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-footer">
+                <button class="btn-secondary" onclick="closeUserSettings()">取消</button>
+                <button class="btn-primary" onclick="saveUserSettings()">保存更改</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Full Screen Player Overlay -->
         <div class="fullscreen-player" id="fs-player">
             <div class="fs-header">
                 <button onclick="closeFullScreenPlayer()" class="back-btn"><i class="fas fa-chevron-down"></i></button>
                 <div></div>
             </div>
-        
+
         <div class="fs-content">
             <!-- Left Side: Album Art & Controls -->
             <div class="fs-left">
@@ -123,6 +196,6 @@
     <audio id="audio-player"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
-    <script src="/static/js/app.js?v=9"></script>
+    <script src="/static/js/app.js?v=14"></script>
 </body>
 </html>

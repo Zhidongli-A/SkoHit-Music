@@ -956,8 +956,8 @@ h2 {
     border-radius: 2px;
     -webkit-appearance: none;
     background: linear-gradient(to right, 
-        #ffffff 0%, 
-        #ffffff var(--progress-percent, 0%), 
+        #000000 0%, 
+        #000000 var(--progress-percent, 0%), 
         var(--border-color) var(--progress-percent, 0%), 
         var(--border-color) 100%
     );
@@ -971,8 +971,8 @@ h2 {
 .progress-container input[type=range]::-webkit-slider-runnable-track {
     height: 4px;
     background: linear-gradient(to right, 
-        #ffffff 0%, 
-        #ffffff var(--progress-percent, 0%), 
+        #000000 0%, 
+        #000000 var(--progress-percent, 0%), 
         var(--border-color) var(--progress-percent, 0%), 
         var(--border-color) 100%
     );
@@ -990,7 +990,7 @@ h2 {
 
 .progress-container input[type=range]::-moz-range-progress {
     height: 4px;
-    background: #ffffff;
+    background: #000000;
     border-radius: 2px;
     transition: height 0.2s ease;
 }

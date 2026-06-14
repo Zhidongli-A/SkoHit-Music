@@ -1245,21 +1245,19 @@ async function saveUserSettings() {
 async function uploadAvatar(input) {
     const file = input.files[0];
     if (!file) {
-        console.log('No file selected');
+        input.value = '';
         return;
     }
 
-    console.log('Uploading file:', file.name, 'Type:', file.type, 'Size:', file.size);
-
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-        showToast('请选择图片文件', 'error');
+        input.value = '';
         return;
     }
 
     // 验证文件大小（最大 2MB）
     if (file.size > 2 * 1024 * 1024) {
-        showToast('图片大小不能超过 2MB', 'error');
+        input.value = '';
         return;
     }
 
@@ -1267,28 +1265,20 @@ async function uploadAvatar(input) {
     formData.append('avatar', file);
 
     try {
-        showToast('上传中...');
-
         const res = await fetch('/api/user/avatar', {
             method: 'POST',
             body: formData
         });
 
-        console.log('Response status:', res.status);
-
         if (!res.ok) {
-            const text = await res.text();
-            console.error('Server error:', text);
-            showToast('服务器错误: ' + res.status, 'error');
+            input.value = '';
             return;
         }
 
         const result = await res.json();
-        console.log('Response:', result);
 
         if (result.success) {
-            showToast('头像已更新');
-            // 刷新头像显示
+            // 直接刷新头像，无提示
             const timestamp = new Date().getTime();
             const settingsImg = document.getElementById('settings-avatar-img');
             const sidebarImg = document.getElementById('sidebar-avatar');
@@ -1297,12 +1287,9 @@ async function uploadAvatar(input) {
                 settingsImg.src = `/api/user/avatar?t=${timestamp}`;
             }
             if (sidebarImg) sidebarImg.src = `/api/user/avatar?t=${timestamp}`;
-        } else {
-            showToast(result.message || '上传失败', 'error');
         }
     } catch (e) {
         console.error('Upload error:', e);
-        showToast('上传失败: ' + e.message, 'error');
     }
 
     // 清空 input 以便可以再次选择同一文件

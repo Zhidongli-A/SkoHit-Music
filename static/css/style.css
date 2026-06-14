@@ -504,6 +504,10 @@ body {
     background-color: rgba(0, 0, 0, 0.02);
 }
 
+.settings-footer .btn-primary {
+    background-color: #000000;
+}
+
 .btn-secondary,
 .btn-primary {
     padding: 12px 24px;
